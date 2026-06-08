@@ -1,81 +1,101 @@
 import sys
 import os
 import asyncio
-import logging
-from flask import Flask
-from threading import Thread
-from pyrogram import Client
-from pyrogram.enums import MessageEntityType
-from pyrogram.types import Message
+import copy
 
-# Sinxronizatsiya xatoligini o'chirish
+# PYROGRAM SYNC MODULINI O'CHIRAMIZ
 class FakeSync:
     def __getattr__(self, name): return None
 sys.modules["pyrogram.sync"] = FakeSync()
 
-# Flask server (Render uchun)
+from flask import Flask
+from threading import Thread
+from pyrogram import Client, filters
+from pyrogram.enums import MessageEntityType
+from pyrogram.types import Message
+
+# ================= SERVER (UPTIME) =================
 flask_app = Flask("")
 @flask_app.route("/")
 def home(): return "Bot 24/7 ishlamoqda!"
-Thread(target=lambda: flask_app.run(host="0.0.0.0", port=8080), daemon=True).start()
 
-# Matnni tahrirlash
+def run_flask():
+    flask_app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
+
+Thread(target=run_flask, daemon=True).start()
+
+# ================= MANTIQ FUNKSIYASI =================
 def edit_caption_text(message: Message):
     text = message.caption or message.text
     if not text: return "", []
+    entities = copy.deepcopy(message.caption_entities or message.entities or [])
     
-    entities = message.caption_entities or message.entities or []
-    bold_entity = next((e for e in entities if e.type == MessageEntityType.BOLD and e.offset == 0), None)
-    sarlavha = text[bold_entity.offset : bold_entity.offset + bold_entity.length] if bold_entity else text.split('\n')[0]
+    for entity in entities:
+        if entity.type == MessageEntityType.TEXT_LINK:
+            word = text[entity.offset : entity.offset + entity.length].upper()
+            if any(x in word for x in ["ХАБАРИНГИЗНИ", "ЮБОРМОҚЧИ", "УШБУ"]):
+                entity.url = "https://t.me/eltuzar_uz_bot"
+            elif "LIVE" in word or "MEDIA" in word:
+                entity.url = "https://t.me/eltuzaar_uz"
+            elif "X" in word and len(word) == 1:
+                entity.url = "https://x.com/eltuzar_uz"
+            elif "INSTAGRAM" in word:
+                entity.url = "https://www.instagram.com/eltuzaar_uz"
+            elif "FACEBOOK" in word:
+                entity.url = "https://www.facebook.com/profile.php?id=61585818251235"
+    return text, entities
 
-    footer_text = "\n\n👇 Давоми\n\nХАБАРИНГИЗНИ ЮБОРМОҚЧИ БЎЛСАНГИЗ УШБУ ҲАВОЛА УСТИГА БОСИНГ 👈\n\nРасмий саҳифаларимизга обуна бўлинг:\nLIVE | MEDIA | X | INSTAGRAM | FACEBOOK"
-    full_text = sarlavha + footer_text
-    
-    new_entities = []
-    if bold_entity: new_entities.append(MessageEntityType.BOLD(offset=0, length=len(sarlavha)))
-    
-    def add_link(url, link_text):
-        start = full_text.find(link_text)
-        if start != -1: new_entities.append(MessageEntityType.TEXT_LINK(offset=start, length=len(link_text), url=url))
+# ================= ASOSIY BOT =================
+async def start_bot():
+    api_id = os.environ.get("API_ID")
+    api_hash = os.environ.get("API_HASH")
+    session_string = os.environ.get("SESSION_STRING")
+    source_channel = os.environ.get("SOURCE_CHANNEL", "@tuztuzttt")
+    target_channel = os.environ.get("TARGET_CHANNEL", "@eltuzaar_uz")
 
-    add_link("https://t.me/eltuzar_uz_bot", "ХАБАРИНГИЗНИ ЮБОРМОҚЧИ БЎЛСАНГИЗ УШБУ ҲАВОЛА УСТИГА БОСИНГ 👈")
-    add_link("https://t.me/eltuzaar_uz", "LIVE")
-    add_link("https://t.me/eltuzaar_uz", "MEDIA")
-    add_link("https://x.com/eltuzar_uz", "X")
-    add_link("https://www.instagram.com/eltuzaar_uz", "INSTAGRAM")
-    add_link("https://www.facebook.com/profile.php?id=61585818251235", "FACEBOOK")
+    if not api_id or not api_hash:
+        print("❌ XATOLIK: API_ID yoki API_HASH topilmadi!")
+        return
 
-    return full_text, new_entities
+    app = Client("render_userbot", api_id=int(api_id), api_hash=api_hash, session_string=session_string)
 
-# Asosiy ulanish va kuzatish
-async def main():
-    app = Client("render_userbot", 
-                 api_id=int(os.environ["API_ID"]), 
-                 api_hash=os.environ["API_HASH"], 
-                 session_string=os.environ["SESSION_STRING"])
-    
-    await app.start()
-    source = os.environ.get("SOURCE_CHANNEL", "@tuztuzttt")
-    target = os.environ.get("TARGET_CHANNEL", "@eltuzaar_uz")
-    
-    print(f"🚀 Bot ishga tushdi! {source} kuzatilmoqda...")
+    footer = (
+        "\n\n👇 Давоми\n\n"
+        "Расмий саҳифаларимизга обуна бўлинг:\n"
+        "RASMIY | LIVE | MEDIA  | MUHOKAMALR UCHUN !!!"
+    )
 
-    # Har qanday xabarni ushlab olish (filtrsiz)
-    @app.on_message()
-    async def handler(client: Client, message: Message):
-        # Faqat kerakli kanaldan kelganini tekshiramiz
-        if message.chat and str(message.chat.username) == source.replace('@', '') or message.chat.id == source:
-            print(f"📩 Yangi xabar aniqlandi: {message.id}")
-            new_text, new_entities = edit_caption_text(message)
-            
+    @app.on_message(filters.chat(source_channel))
+    async def forward_and_edit(client: Client, message: Message):
+        text, entities = edit_caption_text(message)
+        
+        # Media + Matn 1024 dan oshsa ajratish
+        if (message.photo or message.video) and len(text or "") > 1024:
             try:
-                if message.photo: await client.send_photo(target, message.photo.file_id, caption=new_text, caption_entities=new_entities)
-                elif message.video: await client.send_video(target, message.video.file_id, caption=new_text, caption_entities=new_entities)
-                elif message.text: await client.send_message(target, text=new_text, entities=new_entities)
-            except Exception as e:
-                print(f"❌ Xatolik: {e}")
+                # 1. Medianing o'zini footer bilan yuborish
+                if message.photo:
+                    await client.send_photo(target_channel, photo=message.photo.file_id, caption=footer)
+                elif message.video:
+                    await client.send_video(target_channel, video=message.video.file_id, caption=footer)
+                
+                # 2. Matn qismini alohida yuborish
+                await client.send_message(target_channel, text=text, entities=entities)
+            except Exception as e: print(f"❌ Xatolik (ajratib yuborish): {e}")
+        
+        else:
+            # Oddiy holatda yuborish
+            try:
+                if message.photo: await client.send_photo(target_channel, photo=message.photo.file_id, caption=text, caption_entities=entities)
+                elif message.video: await client.send_video(target_channel, video=message.video.file_id, caption=text, caption_entities=entities)
+                elif message.audio or message.voice: await client.send_audio(target_channel, audio=(message.audio or message.voice).file_id, caption=text, caption_entities=entities)
+                elif message.text: await client.send_message(target_channel, text=text, entities=entities)
+            except Exception as e: print(f"❌ Xatolik: {e}")
 
-    await asyncio.Event().wait()
+    await app.start()
+    print(f"🚀 Bot ishga tushdi! Kuzatilmoqda: {source_channel}")
+    
+    while True:
+        await asyncio.sleep(3600)
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    asyncio.run(start_bot())
