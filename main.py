@@ -46,35 +46,26 @@ def edit_caption_text(message: Message):
     return text, entities
 
 def split_text_smart(text, entities, limit=4096):
-    """Matnni va linklarni buzmaydigan qilib qismlarga ajratadi"""
     parts = []
     current_idx = 0
-    
     while current_idx < len(text):
         split_point = min(current_idx + limit, len(text))
-        
-        # Kesish nuqtasi link ichiga tushib qolsa, linkdan oldinroq kesamiz
         for ent in entities:
             if ent.type == MessageEntityType.TEXT_LINK:
                 if ent.offset < split_point < (ent.offset + ent.length):
                     split_point = ent.offset
-        
         part_text = text[current_idx:split_point]
         part_entities = []
         for ent in entities:
             if current_idx <= ent.offset < split_point:
                 new_ent = copy.deepcopy(ent)
                 new_ent.offset -= current_idx
-                # Agar entity kesilib qolsa, uni sig'adigan qilib kesamiz
                 if new_ent.offset + new_ent.length > len(part_text):
                     new_ent.length = len(part_text) - new_ent.offset
                 part_entities.append(new_ent)
-        
         parts.append((part_text, part_entities))
         current_idx = split_point
-        if current_idx == split_point: # Infinite loop oldini olish
-            current_idx += 1
-            
+        if current_idx == split_point: current_idx += 1
     return parts
 
 # ================= ASOSIY BOT =================
@@ -93,6 +84,30 @@ async def start_bot():
         text = text or ""
         total_len = len(text)
         
-        # 1. Jami <= 1024 (Media + Matn birga)
+        # 1. Jami <= 1024
         if total_len <= 1024:
-            if
+            if message.photo: await client.send_photo(target_channel, photo=message.photo.file_id, caption=text, caption_entities=entities)
+            elif message.video: await client.send_video(target_channel, video=message.video.file_id, caption=text, caption_entities=entities)
+            elif message.text: await client.send_message(target_channel, text=text, entities=entities)
+        
+        # 2. Media bor va 1024 < Jami <= 4096
+        elif (message.photo or message.video) and total_len <= 4096:
+            if message.photo: await client.send_photo(target_channel, photo=message.photo.file_id)
+            elif message.video: await client.send_video(target_channel, video=message.video.file_id)
+            await client.send_message(target_channel, text=text, entities=entities)
+            
+        # 3. Qolgan barcha holatlar (4096 dan katta yoki Media bilan 1024 dan katta)
+        else:
+            if message.photo: await client.send_photo(target_channel, photo=message.photo.file_id)
+            elif message.video: await client.send_video(target_channel, video=message.video.file_id)
+            
+            parts = split_text_smart(text, entities, 4096)
+            for part_text, part_entities in parts:
+                await client.send_message(target_channel, text=part_text, entities=part_entities)
+
+    await app.start()
+    print(f"🚀 Bot ishga tushdi!")
+    await asyncio.Event().wait()
+
+if __name__ == "__main__":
+    asyncio.run(start_bot())
