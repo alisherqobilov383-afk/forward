@@ -3,7 +3,13 @@ import copy
 import os
 import asyncio
 
-# 1. PYTHON 3.14 UCHUN PYROGRAM SYNC XATOSINI BUTUNLAY TO'SISh
+# 1. PYTHON 3.14 UCHUN EVENT LOOP VA SYNC XATOLARINI MAJBURIY TUZATISH (ENG TEPADA TURISHI SHART)
+try:
+    asyncio.get_event_loop()
+except RuntimeError:
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
 class FakeSync:
     def __getattr__(self, name):
         return None
@@ -50,7 +56,6 @@ else:
 def edit_caption_text(message: Message):
     text = message.caption if message.caption else message.text
     
-    # Agar postda umuman matn bo'lmasa, bo'sh joy qaytaramiz (lekin return qilib bloklamaymiz)
     if not text:
         return None, []
 
@@ -63,16 +68,14 @@ def edit_caption_text(message: Message):
     MY_INSTA_LINK = "https://www.instagram.com/eltuzar_uz"  
     MY_FB_LINK = "https://www.facebook.com/profile.php?id=61585818251235"  
 
-    # 1. Matn ichidagi oddiy yozilgan linklarni (t.me/eltuzar_live) to'g'ridan-to'g'ri almashtirish
     text = text.replace("https://t.me/eltuzar_live", "https://t.me/eltuzaar_uz")
     text = text.replace("@eltuzar_live", "@eltuzaar_uz")
 
-    # 2. Yashirin gipersilkalarni (TEXT_LINK) tahrirlash
     for entity in entities:
         if entity.type == MessageEntityType.TEXT_LINK:
             start = entity.offset
             end = entity.offset + entity.length
-            word = text[start:end].upper() # Katta-kichik harflarga sezgirlikni yo'qotamiz
+            word = text[start:end].upper()
 
             if "ХАБАРИНГИЗНИ" in word or "ЮБОРМОҚЧИ" in word or "УШБУ" in word:
                 entity.url = MY_BOT_LINK
@@ -96,7 +99,6 @@ async def forward_and_edit(client: Client, message: Message):
     try:
         new_text, new_entities = edit_caption_text(message)
 
-        # Agar matn bo'lsa `new_text` yuboriladi, bo'lmasa `None` (matnsiz rasm/video o'taveradi)
         if message.photo:
             await client.send_photo(chat_id=TARGET_CHANNEL, photo=message.photo.file_id, caption=new_text, caption_entities=new_entities)
             print("📸 Rasm muvaffaqiyatli o'tkazildi!")
@@ -121,10 +123,7 @@ async def start_bot():
     try:
         await app.start()
         print("✅ Bot muvaffaqiyatli Telegramga ulandi va jonli rejimda tinglamoqda!")
-        
-        # Oqimni to'xtatmaydigan eng xavfsiz Pyrogram rejimini yoqamiz
         await idle()
-        
     except Exception as xato:
         print(f"❌ XATOLIK: {xato}")
     finally:
@@ -132,4 +131,9 @@ async def start_bot():
             await app.stop()
 
 if __name__ == "__main__":
-    asyncio.run(start_bot())
+    # Python 3.14 da loop'ni eski usullarsiz, to'g'ridan-to'g'ri joriy oqim ichida ishga tushiramiz
+    try:
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(start_bot())
+    except RuntimeError:
+        asyncio.run(start_bot())
