@@ -1,17 +1,17 @@
+import sys
 import copy
 import os
 import asyncio
 
-# 1. PYTHON 3.14 UCHUN PYROGRAM EVENT-LOOP XATOSINI TUZATISH
-try:
-    asyncio.get_event_loop()
-except RuntimeError:
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
+# 1. PYTHON 3.14 UCHUN PYROGRAM SYNC XATOSINI BUTUNLAY TO'SISh
+class FakeSync:
+    def __getattr__(self, name):
+        return None
+sys.modules["pyrogram.sync"] = FakeSync()
 
 from flask import Flask
 from threading import Thread
-from pyrogram import Client, filters
+from pyrogram import Client, filters, idle
 from pyrogram.enums import MessageEntityType
 from pyrogram.types import Message
 
@@ -26,26 +26,24 @@ def run_flask():
     port = int(os.environ.get("PORT", 8080))
     flask_app.run(host="0.0.0.0", port=port)
 
+# Veb-serverni alohida oqimda zudlik bilan yurgizamiz
 Thread(target=run_flask, daemon=True).start()
 print("🌐 Web-server Render uchun muvaffaqiyatli ishga tushdi...")
 
 
 # ================= USERBOT SOZLAMALARI (100% XAVFSIZ) =================
-# Kod ichida hech qanday kalit qolmadi, hammasi Render muhitidan olinadi
 API_ID = int(os.environ.get("API_ID", 0))  
 API_HASH = os.environ.get("API_HASH", "")
 SESSION_STRING = os.environ.get("SESSION_STRING", "")
 
-SOURCE_CHANNEL = "@tuztuzttt"  # Kuzatiladigan begona kanal
+SOURCE_CHANNEL = "@tuztuzttt"     # Kuzatiladigan begona kanal
 TARGET_CHANNEL = "@eltuzaar_uz"    # Post tashlanadigan o'zingizning kanaliz
 
-# Render serverida faqat SESSION_STRING orqali ishlaydi
 if SESSION_STRING:
     app = Client("render_userbot", api_id=API_ID, api_hash=API_HASH, session_string=SESSION_STRING)
 else:
-    # Agar mahalliy kompyuterda ishga tushirsangiz, local session faylidan foydalanadi
     app = Client("render_userbot", api_id=API_ID if API_ID != 0 else 31041560, 
-                                  api_hash=API_HASH if API_HASH != "" else "9a19946a1c73f1d1652636804903e176")
+                  api_hash=API_HASH if API_HASH != "" else "9a19946a1c73f1d1652636804903e176")
 
 
 # ================= GIPERSILKALARNI O'ZGARTIRISH FUNKSIYASI =================
@@ -110,19 +108,23 @@ async def forward_and_edit(client: Client, message: Message):
         print(f"❌ Xatolik: {e}")
 
 
-# ================= BOTNI ISHGA TUSHIRISH MAIN SIKLI =================
+# ================= BOTNI ISHGA TUSHIRISH (MUTLAQO XAVFSIZ) =================
 async def start_bot():
     print("🚀 Bot serverda ishga tushmoqda...")
     try:
         await app.start()
-        print("✅ Bot muvaffaqiyatli Telegramga ulandi va ishlayapti!")
-        while True:
-            await asyncio.sleep(3600)
+        print("✅ Bot muvaffaqiyatli Telegramga ulandi va jonli rejimda tinglamoqda!")
+        
+        # Python 3.14 da botni o'chirib qo'ymasdan jonli eshitishda ushlab turuvchi eng to'g'ri buyruq:
+        await idle()
+        
     except Exception as xato:
         print(f"❌ XATOLIK: {xato}")
     finally:
-        await app.stop()
+        # Bot kutilmaganda to'xtasa, sessiyani toza yopadi
+        if app.is_connected:
+            await app.stop()
 
 if __name__ == "__main__":
-    current_loop = asyncio.get_event_loop()
-    current_loop.run_until_complete(start_bot())
+    # Python 3.14 da event loop xatolarini chetlab o'tish uchun eng zamonaviy yurgizgich:
+    asyncio.run(start_bot())
