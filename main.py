@@ -3,7 +3,7 @@ import os
 import asyncio
 import copy
 
-# PYROGRAM SYNC MODULINI O'CHIRAMIZ
+# 1. PYROGRAM SYNC MODULINI O'CHIRAMIZ
 class FakeSync:
     def __getattr__(self, name): return None
 sys.modules["pyrogram.sync"] = FakeSync()
@@ -20,7 +20,7 @@ flask_app = Flask("")
 def home(): return "Bot 24/7 ishlamoqda!"
 
 def run_flask():
-    flask_app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
+    flask_app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))
 
 Thread(target=run_flask, daemon=True).start()
 
@@ -53,10 +53,6 @@ async def start_bot():
     source_channel = os.environ.get("SOURCE_CHANNEL", "@tuztuzttt")
     target_channel = os.environ.get("TARGET_CHANNEL", "@eltuzaar_uz")
 
-    if not api_id or not api_hash:
-        print("❌ XATOLIK: API_ID yoki API_HASH topilmadi!")
-        return
-
     app = Client("render_userbot", api_id=int(api_id), api_hash=api_hash, session_string=session_string)
 
     footer = (
@@ -69,33 +65,31 @@ async def start_bot():
     async def forward_and_edit(client: Client, message: Message):
         text, entities = edit_caption_text(message)
         
-        # Media + Matn 1024 dan oshsa ajratish
+        # SHART: Agar media bor va matn 1024 dan oshsa
         if (message.photo or message.video) and len(text or "") > 1024:
             try:
-                # 1. Medianing o'zini footer bilan yuborish
+                # 1. Medianing o'zini faqat footer bilan yuborish
                 if message.photo:
                     await client.send_photo(target_channel, photo=message.photo.file_id, caption=footer)
                 elif message.video:
                     await client.send_video(target_channel, video=message.video.file_id, caption=footer)
                 
-                # 2. Matn qismini alohida yuborish
+                # 2. Matn qismini alohida xabar qilib yuborish
                 await client.send_message(target_channel, text=text, entities=entities)
             except Exception as e: print(f"❌ Xatolik (ajratib yuborish): {e}")
         
         else:
-            # Oddiy holatda yuborish
+            # Oddiy holat (1024 dan oshmasa)
             try:
-                if message.photo: await client.send_photo(target_channel, photo=message.photo.file_id, caption=text, caption_entities=entities)
-                elif message.video: await client.send_video(target_channel, video=message.video.file_id, caption=text, caption_entities=entities)
-                elif message.audio or message.voice: await client.send_audio(target_channel, audio=(message.audio or message.voice).file_id, caption=text, caption_entities=entities)
-                elif message.text: await client.send_message(target_channel, text=text, entities=entities)
+                if message.photo: await client.send_photo(target_channel, photo=message.photo.file_id, caption=text + footer, caption_entities=entities)
+                elif message.video: await client.send_video(target_channel, video=message.video.file_id, caption=text + footer, caption_entities=entities)
+                elif message.audio or message.voice: await client.send_audio(target_channel, audio=(message.audio or message.voice).file_id, caption=text + footer, caption_entities=entities)
+                elif message.text: await client.send_message(target_channel, text=text + footer, entities=entities)
             except Exception as e: print(f"❌ Xatolik: {e}")
 
     await app.start()
-    print(f"🚀 Bot ishga tushdi! Kuzatilmoqda: {source_channel}")
-    
-    while True:
-        await asyncio.sleep(3600)
+    print(f"🚀 Bot ishga tushdi!")
+    await asyncio.Event().wait()
 
 if __name__ == "__main__":
     asyncio.run(start_bot())
