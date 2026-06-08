@@ -33,10 +33,12 @@ def edit_caption_text(message: Message):
     for entity in entities:
         if entity.type == MessageEntityType.TEXT_LINK:
             word = text[entity.offset : entity.offset + entity.length].upper()
-            if any(x in word for x in ["ХАБАРИНГИЗНИ", "ЮБОРМОҚЧИ", "УШБУ"]):
+            if any(x in word for x in ["ХАБАРИНГИЗНИ ЮБОРМОҚЧИ БЎЛСАНГИЗ УШБУ ҲАВОЛА УСТИГА БОСИНГ", "ЮБОРМОҚЧИ", "УШБУ"]):
                 entity.url = "https://t.me/eltuzar_uz_bot"
-            elif "LIVE" in word or "MEDIA" in word:
-                entity.url = "https://t.me/eltuzaar_uz"
+            elif "LIVE" in word:
+                entity.url = "https://t.me/eltuzar_livee"
+            elif "MEDIA" in word:
+                entity.url = "https://t.me/eltuzar_mediaa"
             elif "X" in word and len(word) == 1:
                 entity.url = "https://x.com/eltuzar_uz"
             elif "INSTAGRAM" in word:
@@ -50,8 +52,8 @@ async def start_bot():
     api_id = os.environ.get("API_ID")
     api_hash = os.environ.get("API_HASH")
     session_string = os.environ.get("SESSION_STRING")
-    source_channel = os.environ.get("SOURCE_CHANNEL", "@tuztuzttt")
-    target_channel = os.environ.get("TARGET_CHANNEL", "@eltuzaar_uz")
+    source_channel = os.environ.get("SOURCE_CHANNEL", "@eltuzar_live")
+    target_channel = os.environ.get("TARGET_CHANNEL", "@eltuzar_livee")
 
     if not api_id or not api_hash:
         print("❌ XATOLIK: API_ID yoki API_HASH topilmadi!")
