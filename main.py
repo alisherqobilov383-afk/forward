@@ -1,130 +1,73 @@
-import sys
-import copy
-import os
 import asyncio
+import os
+import copy
 
-# 1. PYTHON 3.14 UCHUN PYROGRAM SYNC XATOSINI BUTUNLAY TO'SISh
+# 1. Loopni birinchi bo'lib yaratamiz
+loop = asyncio.new_event_loop()
+asyncio.set_event_loop(loop)
+
+# 2. Pyrogram import qilishdan oldin sync ni bloklaymiz
+import sys
 class FakeSync:
-    def __getattr__(self, name):
-        return None
+    def __getattr__(self, name): return None
 sys.modules["pyrogram.sync"] = FakeSync()
 
+# 3. Keyin qolganini import qilamiz
 from flask import Flask
 from threading import Thread
-from pyrogram import Client, filters, idle
+from pyrogram import Client, filters
 from pyrogram.enums import MessageEntityType
 from pyrogram.types import Message
 
-# ================= RENDER UCHUN VEB SERVER =================
+# Render uchun server
 flask_app = Flask("")
-
 @flask_app.route("/")
-def home():
-    return "Bot 24/7 rejimida muvaffaqiyatli ishlamoqda!"
+def home(): return "Bot ishlamoqda!"
+Thread(target=lambda: flask_app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080))), daemon=True).start()
 
-def run_flask():
-    port = int(os.environ.get("PORT", 8080))
-    flask_app.run(host="0.0.0.0", port=port)
+# Bot sozlamalari
+SOURCE_CHANNEL = "@tuztuzttt"
+TARGET_CHANNEL = "@eltuzaar_uz"
 
-# Veb-serverni alohida oqimda zudlik bilan yurgizamiz
-Thread(target=run_flask, daemon=True).start()
-print("🌐 Web-server Render uchun muvaffaqiyatli ishga tushdi...")
+app = Client(
+    "render_userbot", 
+    api_id=int(os.environ.get("API_ID", 31041560)), 
+    api_hash=os.environ.get("API_HASH", "9a19946a1c73f1d1652636804903e176"), 
+    session_string=os.environ.get("SESSION_STRING", "")
+)
 
-
-# ================= USERBOT SOZLAMALARI (100% XAVFSIZ) =================
-API_ID = int(os.environ.get("API_ID", 0))  
-API_HASH = os.environ.get("API_HASH", "")
-SESSION_STRING = os.environ.get("SESSION_STRING", "")
-
-SOURCE_CHANNEL = "@tuztuzttt"     # Kuzatiladigan begona kanal
-TARGET_CHANNEL = "@wergfdgsdfsfwerw"    # Post tashlanadigan o'zingizning kanaliz
-
-if SESSION_STRING:
-    app = Client("render_userbot", api_id=API_ID, api_hash=API_HASH, session_string=SESSION_STRING)
-else:
-    app = Client("render_userbot", api_id=API_ID if API_ID != 0 else 31041560, 
-                  api_hash=API_HASH if API_HASH != "" else "9a19946a1c73f1d1652636804903e176")
-
-
-# ================= GIPERSILKALARNI O'ZGARTIRISH FUNKSIYASI =================
-def edit_caption_text(message: Message):
-    text = message.caption if message.caption else message.text
-    if not text:
-        return "", []
-
+def get_edited_message(message: Message):
+    text = message.caption or message.text
+    if not text: return None, []
+    new_text = text.replace("https://t.me/eltuzar_live", "https://t.me/eltuzaar_uz")
     entities = copy.deepcopy(message.caption_entities or message.entities or [])
-
-    MY_BOT_LINK = "https://t.me/eltuzar_uz_bot"  
-    MY_LIVE_LINK = "https://t.me/eltuzaar_uz"  
-    MY_MEDIA_LINK = "https://t.me/eltuzaar_uz"  
-    MY_X_LINK = "https://x.com/eltuzar_uz"  
-    MY_INSTA_LINK = "https://www.instagram.com/eltuzar_uz"  
-    MY_FB_LINK = "https://www.facebook.com/profile.php?id=61585818251235"  
-
     for entity in entities:
         if entity.type == MessageEntityType.TEXT_LINK:
             start = entity.offset
             end = entity.offset + entity.length
-            word = text[start:end]
+            word = text[start:end].upper()
+            if "LIVE" in word or "MEDIA" in word:
+                entity.url = "https://t.me/eltuzaar_uz"
+    return new_text, entities
 
-            if "ХАБАРИНГИЗНИ" in word or "юбормоқчи" in word or "ушбу" in word:
-                entity.url = MY_BOT_LINK
-            elif "LIVE" in word:
-                entity.url = MY_LIVE_LINK
-            elif "MEDIA" in word:
-                entity.url = MY_MEDIA_LINK
-            elif "X" in word:
-                entity.url = MY_X_LINK
-            elif "INSTAGRAM" in word:
-                entity.url = MY_INSTA_LINK
-            elif "FACEBOOK" in word:
-                entity.url = MY_FB_LINK
-
-    return text, entities
-
-
-# ================= XABARLARNI USHLASH VA YUBORISH =================
 @app.on_message(filters.chat(SOURCE_CHANNEL))
 async def forward_and_edit(client: Client, message: Message):
+    new_text, new_entities = get_edited_message(message)
     try:
-        new_text, new_entities = edit_caption_text(message)
-        if not new_text:
-            return
-
         if message.photo:
-            await client.send_photo(chat_id=TARGET_CHANNEL, photo=message.photo.file_id, caption=new_text, caption_entities=new_entities)
-            print("📸 Rasm yuborildi!")
+            await client.send_photo(TARGET_CHANNEL, photo=message.photo.file_id, caption=new_text, caption_entities=new_entities)
         elif message.video:
-            await client.send_video(chat_id=TARGET_CHANNEL, video=message.video.file_id, caption=new_text, caption_entities=new_entities)
-            print("🎥 Video yuborildi!")
-        elif message.audio or message.voice:
-            file_id = message.audio.file_id if message.audio else message.voice.file_id
-            await client.send_audio(chat_id=TARGET_CHANNEL, audio=file_id, caption=new_text, caption_entities=new_entities)
-            print("🎵 Audio yuborildi!")
+            await client.send_video(TARGET_CHANNEL, video=message.video.file_id, caption=new_text, caption_entities=new_entities)
         elif message.text:
-            await client.send_message(chat_id=TARGET_CHANNEL, text=new_text, entities=new_entities)
-            print("📝 Matnli xabar yuborildi!")
+            await client.send_message(TARGET_CHANNEL, text=new_text, entities=new_entities)
     except Exception as e:
-        print(f"❌ Xatolik: {e}")
+        print(f"Xatolik: {e}")
 
-
-# ================= BOTNI ISHGA TUSHIRISH (MUTLAQO XAVFSIZ) =================
-async def start_bot():
-    print("🚀 Bot serverda ishga tushmoqda...")
-    try:
-        await app.start()
-        print("✅ Bot muvaffaqiyatli Telegramga ulandi va jonli rejimda tinglamoqda!")
-        
-        # Python 3.14 da botni o'chirib qo'ymasdan jonli eshitishda ushlab turuvchi eng to'g'ri buyruq:
-        await idle()
-        
-    except Exception as xato:
-        print(f"❌ XATOLIK: {xato}")
-    finally:
-        # Bot kutilmaganda to'xtasa, sessiyani toza yopadi
-        if app.is_connected:
-            await app.stop()
+async def main():
+    await app.start()
+    print("🚀 Bot muvaffaqiyatli ishga tushdi!")
+    # 'idle()' ishlatmasdan o'zimiz loopni ushlab turamiz
+    await asyncio.Event().wait()
 
 if __name__ == "__main__":
-    # Python 3.14 da event loop xatolarini chetlab o'tish uchun eng zamonaviy yurgizgich:
-    asyncio.run(start_bot())
+    loop.run_until_complete(main())
