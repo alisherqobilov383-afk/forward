@@ -3,7 +3,7 @@ import os
 import asyncio
 import copy
 
-# 1. PYROGRAM SYNC MODULINI BUTUNLAY O'CHIRAMIZ (Xatolikni oldini olish uchun)
+# 1. PYROGRAM SYNC MODULINI O'CHIRAMIZ
 class FakeSync:
     def __getattr__(self, name): return None
 sys.modules["pyrogram.sync"] = FakeSync()
@@ -14,7 +14,7 @@ from pyrogram import Client, filters
 from pyrogram.enums import MessageEntityType
 from pyrogram.types import Message
 
-# ================= SERVER (UPTIME) =================
+# ================= RENDER UPTIME SERVER =================
 flask_app = Flask("")
 @flask_app.route("/")
 def home(): return "Bot 24/7 ishlamoqda!"
@@ -24,37 +24,67 @@ def run_flask():
 
 Thread(target=run_flask, daemon=True).start()
 
-# ================= MANTIQ FUNKSIYASI =================
+# ================= MATNNI TAHRIRLASH MANTIQI =================
 def edit_caption_text(message: Message):
     text = message.caption or message.text
     if not text: return "", []
-    entities = copy.deepcopy(message.caption_entities or message.entities or [])
-    
-    for entity in entities:
-        if entity.type == MessageEntityType.TEXT_LINK:
-            word = text[entity.offset : entity.offset + entity.length].upper()
-            if any(x in word for x in ["ХАБАРИНГИЗНИ", "ЮБОРМОҚЧИ", "УШБУ"]):
-                entity.url = "https://t.me/eltuzar_uz_bot"
-            elif "LIVE" in word or "MEDIA" in word:
-                entity.url = "https://t.me/eltuzaar_uz"
-            elif "X" in word and len(word) == 1:
-                entity.url = "https://x.com/eltuzar_uz"
-            elif "INSTAGRAM" in word:
-                entity.url = "https://www.instagram.com/eltuzaar_uz"
-            elif "FACEBOOK" in word:
-                entity.url = "https://www.facebook.com/profile.php?id=61585818251235"
-    return text, entities
 
-# ================= ASOSIY BOT =================
+    entities = message.caption_entities or message.entities or []
+    
+    # Faqat boshidagi qalin (BOLD) yozuvni yoki birinchi qatorni sarlavha deb olish
+    bold_entity = next((e for e in entities if e.type == MessageEntityType.BOLD and e.offset == 0), None)
+    
+    if bold_entity:
+        sarlavha = text[bold_entity.offset : bold_entity.offset + bold_entity.length]
+    else:
+        sarlavha = text.split('\n')[0]
+
+    # Footer qismi
+    footer_text = (
+        "\n\n👇 Давоми\n\n"
+        "ХАБАРИНГИЗНИ ЮБОРМОҚЧИ БЎЛСАНГИЗ УШБУ ҲАВОЛА УСТИГА БОСИНГ 👈\n\n"
+        "Расмий саҳифаларимизга обуна бўлинг:\n"
+        "LIVE | MEDIA | X | INSTAGRAM | FACEBOOK"
+    )
+
+    full_text = sarlavha + footer_text
+    
+    # Entity'larni yangilash
+    new_entities = []
+    
+    # Agar sarlavha qalin bo'lsa, uni saqlab qolamiz
+    if bold_entity:
+        new_entities.append(MessageEntityType.BOLD(offset=0, length=len(sarlavha)))
+    
+    # Havolalarni qo'shish
+    def add_link(url, link_text):
+        start = full_text.find(link_text)
+        if start != -1:
+            new_entities.append(MessageEntityType.TEXT_LINK(
+                offset=start, length=len(link_text), url=url
+            ))
+
+    add_link("https://t.me/eltuzar_uz_bot", "ХАБАРИНГИЗНИ ЮБОРМОҚЧИ БЎЛСАНГИЗ УШБУ ҲАВОЛА УСТИГА БОСИНГ 👈")
+    add_link("https://t.me/eltuzaar_uz", "LIVE")
+    add_link("https://t.me/eltuzaar_uz", "MEDIA")
+    add_link("https://x.com/eltuzar_uz", "X")
+    add_link("https://www.instagram.com/eltuzaar_uz", "INSTAGRAM")
+    add_link("https://www.facebook.com/profile.php?id=61585818251235", "FACEBOOK")
+
+    return full_text, new_entities
+
+# ================= ASOSIY BOT QISMI =================
 async def start_bot():
     api_id = os.environ.get("API_ID")
     api_hash = os.environ.get("API_HASH")
     session_string = os.environ.get("SESSION_STRING")
+    
+    # Kanal nomlari
     source_channel = os.environ.get("SOURCE_CHANNEL", "@tuztuzttt")
     target_channel = os.environ.get("TARGET_CHANNEL", "@eltuzaar_uz")
 
     if not api_id or not api_hash:
-        print("❌ XATOLIK: API_ID yoki API_HASH topilmadi!")
+        print("❌ XATOLIK: API sozlamalari topilmadi!")
         return
 
     app = Client("render_userbot", api_id=int(api_id), api_hash=api_hash, session_string=session_string)
@@ -72,7 +102,6 @@ async def start_bot():
     await app.start()
     print(f"🚀 Bot ishga tushdi! Kuzatilmoqda: {source_channel}")
     
-    # IDLE o'rniga barqaror kutish sikli
     while True:
         await asyncio.sleep(3600)
 
