@@ -36,7 +36,7 @@ API_ID = int(os.environ.get("API_ID", 0))
 API_HASH = os.environ.get("API_HASH", "")
 SESSION_STRING = os.environ.get("SESSION_STRING", "")
 
-SOURCE_CHANNEL = "@eltuzar_live"  # Kuzatiladigan begona kanal
+SOURCE_CHANNEL = "@tuztuzttt"  # Kuzatiladigan begona kanal
 TARGET_CHANNEL = "@eltuzaar_uz"    # Post tashlanadigan o'zingizning kanaliz
 
 # Render serverida faqat SESSION_STRING orqali ishlaydi
