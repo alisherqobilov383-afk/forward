@@ -49,8 +49,10 @@ else:
 # ================= GIPERSILKALARNI O'ZGARTIRISH FUNKSIYASI =================
 def edit_caption_text(message: Message):
     text = message.caption if message.caption else message.text
+    
+    # Agar postda umuman matn bo'lmasa, bo'sh joy qaytaramiz (lekin return qilib bloklamaymiz)
     if not text:
-        return "", []
+        return None, []
 
     entities = copy.deepcopy(message.caption_entities or message.entities or [])
 
@@ -61,13 +63,18 @@ def edit_caption_text(message: Message):
     MY_INSTA_LINK = "https://www.instagram.com/eltuzar_uz"  
     MY_FB_LINK = "https://www.facebook.com/profile.php?id=61585818251235"  
 
+    # 1. Matn ichidagi oddiy yozilgan linklarni (t.me/eltuzar_live) to'g'ridan-to'g'ri almashtirish
+    text = text.replace("https://t.me/eltuzar_live", "https://t.me/eltuzaar_uz")
+    text = text.replace("@eltuzar_live", "@eltuzaar_uz")
+
+    # 2. Yashirin gipersilkalarni (TEXT_LINK) tahrirlash
     for entity in entities:
         if entity.type == MessageEntityType.TEXT_LINK:
             start = entity.offset
             end = entity.offset + entity.length
-            word = text[start:end]
+            word = text[start:end].upper() # Katta-kichik harflarga sezgirlikni yo'qotamiz
 
-            if "ХАБАРИНГИЗНИ" in word or "юбормоқчи" in word or "ушбу" in word:
+            if "ХАБАРИНГИЗНИ" in word or "ЮБОРМОҚЧИ" in word or "УШБУ" in word:
                 entity.url = MY_BOT_LINK
             elif "LIVE" in word:
                 entity.url = MY_LIVE_LINK
@@ -88,24 +95,24 @@ def edit_caption_text(message: Message):
 async def forward_and_edit(client: Client, message: Message):
     try:
         new_text, new_entities = edit_caption_text(message)
-        if not new_text:
-            return
 
+        # Agar matn bo'lsa `new_text` yuboriladi, bo'lmasa `None` (matnsiz rasm/video o'taveradi)
         if message.photo:
             await client.send_photo(chat_id=TARGET_CHANNEL, photo=message.photo.file_id, caption=new_text, caption_entities=new_entities)
-            print("📸 Rasm yuborildi!")
+            print("📸 Rasm muvaffaqiyatli o'tkazildi!")
         elif message.video:
             await client.send_video(chat_id=TARGET_CHANNEL, video=message.video.file_id, caption=new_text, caption_entities=new_entities)
-            print("🎥 Video yuborildi!")
+            print("🎥 Video muvaffaqiyatli o'tkazildi!")
         elif message.audio or message.voice:
             file_id = message.audio.file_id if message.audio else message.voice.file_id
             await client.send_audio(chat_id=TARGET_CHANNEL, audio=file_id, caption=new_text, caption_entities=new_entities)
-            print("🎵 Audio yuborildi!")
-        elif message.text:
+            print("🎵 Audio muvaffaqiyatli o'tkazildi!")
+        elif message.text and new_text:
             await client.send_message(chat_id=TARGET_CHANNEL, text=new_text, entities=new_entities)
-            print("📝 Matnli xabar yuborildi!")
+            print("📝 Matnli xabar muvaffaqiyatli o'tkazildi!")
+            
     except Exception as e:
-        print(f"❌ Xatolik: {e}")
+        print(f"❌ Xatolik postni o'tkazishda: {e}")
 
 
 # ================= BOTNI ISHGA TUSHIRISH (MUTLAQO XAVFSIZ) =================
@@ -115,16 +122,14 @@ async def start_bot():
         await app.start()
         print("✅ Bot muvaffaqiyatli Telegramga ulandi va jonli rejimda tinglamoqda!")
         
-        # Python 3.14 da botni o'chirib qo'ymasdan jonli eshitishda ushlab turuvchi eng to'g'ri buyruq:
+        # Oqimni to'xtatmaydigan eng xavfsiz Pyrogram rejimini yoqamiz
         await idle()
         
     except Exception as xato:
         print(f"❌ XATOLIK: {xato}")
     finally:
-        # Bot kutilmaganda to'xtasa, sessiyani toza yopadi
         if app.is_connected:
             await app.stop()
 
 if __name__ == "__main__":
-    # Python 3.14 da event loop xatolarini chetlab o'tish uchun eng zamonaviy yurgizgich:
     asyncio.run(start_bot())
