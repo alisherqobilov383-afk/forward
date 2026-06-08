@@ -3,7 +3,7 @@ import os
 import asyncio
 import copy
 
-# 1. PYROGRAM SYNC MODULINI O'CHIRAMIZ
+# PYROGRAM SYNC MODULINI O'CHIRAMIZ
 class FakeSync:
     def __getattr__(self, name): return None
 sys.modules["pyrogram.sync"] = FakeSync()
@@ -55,41 +55,40 @@ async def start_bot():
 
     app = Client("render_userbot", api_id=int(api_id), api_hash=api_hash, session_string=session_string)
 
-    footer = (
-        "\n\n👇 Давоми\n\n"
-        "Расмий саҳифаларимизга обуна бўлинг:\n"
-        "RASMIY | LIVE | MEDIA  | MUHOKAMALR UCHUN !!!"
-    )
-
     @app.on_message(filters.chat(source_channel))
     async def forward_and_edit(client: Client, message: Message):
         text, entities = edit_caption_text(message)
         text = text or ""
+        total_len = len(text)
         
-        # Jami uzunlikni hisoblaymiz (Footer bilan)
-        total_len = len(text) + len(footer)
+        # 1. 1024 dan kam bo'lsa (O'zgarishsiz)
+        if total_len <= 1024:
+            if message.photo: await client.send_photo(target_channel, photo=message.photo.file_id, caption=text, caption_entities=entities)
+            elif message.video: await client.send_video(target_channel, video=message.video.file_id, caption=text, caption_entities=entities)
+            elif message.text: await client.send_message(target_channel, text=text, entities=entities)
         
-        # SHART: Agar media bor va matn 1024 dan oshsa
-        if (message.photo or message.video) and total_len > 1024:
-            try:
-                # 1. Media + Faqat Footer (sarlavhasiz yoki matnsiz)
-                if message.photo:
-                    await client.send_photo(target_channel, photo=message.photo.file_id, caption=footer)
-                elif message.video:
-                    await client.send_video(target_channel, video=message.video.file_id, caption=footer)
-                
-                # 2. Matn qismini alohida xabar qilib yuborish
+        # 2. Media bor va 1024 dan katta
+        elif (message.photo or message.video):
+            # Media qismi
+            if message.photo: await client.send_photo(target_channel, photo=message.photo.file_id)
+            elif message.video: await client.send_video(target_channel, video=message.video.file_id)
+            
+            # Matn qismi
+            if total_len > 4096:
+                mid = len(text) // 2
+                await client.send_message(target_channel, text=text[:mid], entities=entities)
+                await client.send_message(target_channel, text=text[mid:], entities=entities)
+            else:
                 await client.send_message(target_channel, text=text, entities=entities)
-            except Exception as e: print(f"❌ Xatolik (ajratib yuborish): {e}")
         
+        # 3. Media yo'q va 4096 dan katta (Matnni 2 ga bo'lish)
         else:
-            # Oddiy holat (Media yo'q yoki 1024 dan oshmaydi)
-            try:
-                if message.photo: await client.send_photo(target_channel, photo=message.photo.file_id, caption=text + footer, caption_entities=entities)
-                elif message.video: await client.send_video(target_channel, video=message.video.file_id, caption=text + footer, caption_entities=entities)
-                elif message.audio or message.voice: await client.send_audio(target_channel, audio=(message.audio or message.voice).file_id, caption=text + footer, caption_entities=entities)
-                elif message.text: await client.send_message(target_channel, text=text + footer, entities=entities)
-            except Exception as e: print(f"❌ Xatolik: {e}")
+            if total_len > 4096:
+                mid = len(text) // 2
+                await client.send_message(target_channel, text=text[:mid], entities=entities)
+                await client.send_message(target_channel, text=text[mid:], entities=entities)
+            else:
+                await client.send_message(target_channel, text=text, entities=entities)
 
     await app.start()
     print(f"🚀 Bot ishga tushdi! Kuzatilmoqda: {source_channel}")
