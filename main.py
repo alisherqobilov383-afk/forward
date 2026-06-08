@@ -64,11 +64,15 @@ async def start_bot():
     @app.on_message(filters.chat(source_channel))
     async def forward_and_edit(client: Client, message: Message):
         text, entities = edit_caption_text(message)
+        text = text or ""
+        
+        # Jami uzunlikni hisoblaymiz (Footer bilan)
+        total_len = len(text) + len(footer)
         
         # SHART: Agar media bor va matn 1024 dan oshsa
-        if (message.photo or message.video) and len(text or "") > 1024:
+        if (message.photo or message.video) and total_len > 1024:
             try:
-                # 1. Medianing o'zini faqat footer bilan yuborish
+                # 1. Media + Faqat Footer (sarlavhasiz yoki matnsiz)
                 if message.photo:
                     await client.send_photo(target_channel, photo=message.photo.file_id, caption=footer)
                 elif message.video:
@@ -79,7 +83,7 @@ async def start_bot():
             except Exception as e: print(f"❌ Xatolik (ajratib yuborish): {e}")
         
         else:
-            # Oddiy holat (1024 dan oshmasa)
+            # Oddiy holat (Media yo'q yoki 1024 dan oshmaydi)
             try:
                 if message.photo: await client.send_photo(target_channel, photo=message.photo.file_id, caption=text + footer, caption_entities=entities)
                 elif message.video: await client.send_video(target_channel, video=message.video.file_id, caption=text + footer, caption_entities=entities)
@@ -88,7 +92,7 @@ async def start_bot():
             except Exception as e: print(f"❌ Xatolik: {e}")
 
     await app.start()
-    print(f"🚀 Bot ishga tushdi!")
+    print(f"🚀 Bot ishga tushdi! Kuzatilmoqda: {source_channel}")
     await asyncio.Event().wait()
 
 if __name__ == "__main__":
