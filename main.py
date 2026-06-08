@@ -45,26 +45,37 @@ def edit_caption_text(message: Message):
                 entity.url = "https://www.facebook.com/profile.php?id=61585818251235"
     return text, entities
 
-def split_text_with_entities(text, entities, mid):
-    """Matn va entity'larni xavfsiz bo'lish"""
-    text1, text2 = text[:mid], text[mid:]
-    ent1, ent2 = [], []
+def split_text_smart(text, entities, limit=4096):
+    """Matnni va linklarni buzmaydigan qilib qismlarga ajratadi"""
+    parts = []
+    current_idx = 0
     
-    for e in entities:
-        if e.offset < mid:
-            # Agar entity birinchi qismda tugasa
-            if e.offset + e.length <= mid:
-                ent1.append(e)
-            else:
-                # Entity kesilib ketsa, uni qisqartiramiz (oddiy yechim)
-                e.length = mid - e.offset
-                ent1.append(e)
-        else:
-            # Ikkinchi qismdagi entity'lar
-            new_e = copy.deepcopy(e)
-            new_e.offset -= mid
-            ent2.append(new_e)
-    return text1, ent1, text2, ent2
+    while current_idx < len(text):
+        split_point = min(current_idx + limit, len(text))
+        
+        # Kesish nuqtasi link ichiga tushib qolsa, linkdan oldinroq kesamiz
+        for ent in entities:
+            if ent.type == MessageEntityType.TEXT_LINK:
+                if ent.offset < split_point < (ent.offset + ent.length):
+                    split_point = ent.offset
+        
+        part_text = text[current_idx:split_point]
+        part_entities = []
+        for ent in entities:
+            if current_idx <= ent.offset < split_point:
+                new_ent = copy.deepcopy(ent)
+                new_ent.offset -= current_idx
+                # Agar entity kesilib qolsa, uni sig'adigan qilib kesamiz
+                if new_ent.offset + new_ent.length > len(part_text):
+                    new_ent.length = len(part_text) - new_ent.offset
+                part_entities.append(new_ent)
+        
+        parts.append((part_text, part_entities))
+        current_idx = split_point
+        if current_idx == split_point: # Infinite loop oldini olish
+            current_idx += 1
+            
+    return parts
 
 # ================= ASOSIY BOT =================
 async def start_bot():
@@ -82,39 +93,6 @@ async def start_bot():
         text = text or ""
         total_len = len(text)
         
-        # 1. Jami < 1024: O'zgarishsiz
+        # 1. Jami <= 1024 (Media + Matn birga)
         if total_len <= 1024:
-            if message.photo: await client.send_photo(target_channel, photo=message.photo.file_id, caption=text, caption_entities=entities)
-            elif message.video: await client.send_video(target_channel, video=message.video.file_id, caption=text, caption_entities=entities)
-            elif message.text: await client.send_message(target_channel, text=text, entities=entities)
-        
-        # 2 va 3. Media bor (Ajratish kerak)
-        elif (message.photo or message.video):
-            if message.photo: await client.send_photo(target_channel, photo=message.photo.file_id)
-            elif message.video: await client.send_video(target_channel, video=message.video.file_id)
-            
-            # Matn > 4096 bo'lsa 2 ga bo'lish, bo'lmasa oddiy yuborish
-            if total_len > 4096:
-                mid = total_len // 2
-                t1, e1, t2, e2 = split_text_with_entities(text, entities, mid)
-                await client.send_message(target_channel, text=t1, entities=e1)
-                await client.send_message(target_channel, text=t2, entities=e2)
-            else:
-                await client.send_message(target_channel, text=text, entities=entities)
-        
-        # 4. Media yo'q va Matn > 4096
-        else:
-            if total_len > 4096:
-                mid = total_len // 2
-                t1, e1, t2, e2 = split_text_with_entities(text, entities, mid)
-                await client.send_message(target_channel, text=t1, entities=e1)
-                await client.send_message(target_channel, text=t2, entities=e2)
-            else:
-                await client.send_message(target_channel, text=text, entities=entities)
-
-    await app.start()
-    print(f"🚀 Bot ishga tushdi! Kuzatilmoqda: {source_channel}")
-    await asyncio.Event().wait()
-
-if __name__ == "__main__":
-    asyncio.run(start_bot())
+            if
