@@ -1,51 +1,50 @@
-import asyncio
 import sys
 import os
+import asyncio
 import copy
+
+# 1. PYROGRAM SYNC MODULINI O'CHIRAMIZ (Python 3.14 xatosi uchun)
+sys.modules["pyrogram.sync"] = None
+
+# 2. LOOPNI BIRINCHI BO'LIB YARATAMIZ
+loop = asyncio.new_event_loop()
+asyncio.set_event_loop(loop)
+
 from flask import Flask
 from threading import Thread
 from pyrogram import Client, filters
 from pyrogram.enums import MessageEntityType
 from pyrogram.types import Message
 
-# 1. Loopni yaratish va Sync ni bloklash
-loop = asyncio.new_event_loop()
-asyncio.set_event_loop(loop)
-
-class FakeSync:
-    def __getattr__(self, name): return None
-sys.modules["pyrogram.sync"] = FakeSync()
-
-# 2. Flask server
-flask_app = Flask("")
+# ================= SERVER (UPTIME) =================
+flask_app = Flask(__name__)
 @flask_app.route("/")
-def home(): return "Bot 24/7 rejimida!"
-Thread(target=lambda: flask_app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080))), daemon=True).start()
+def home(): return "Bot 24/7 ishlamoqda!"
 
-# 3. Xavfsiz sozlamalar (API ma'lumotlarini Render'dan o'qiydi)
+def run_flask():
+    flask_app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
+
+Thread(target=run_flask, daemon=True).start()
+
+# ================= BOT CONFIG =================
 API_ID = os.environ.get("API_ID")
 API_HASH = os.environ.get("API_HASH")
 SESSION_STRING = os.environ.get("SESSION_STRING")
 
-if not API_ID or not API_HASH:
-    print("❌ XATOLIK: API_ID yoki API_HASH topilmadi! Render'dagi Environment Variables ni tekshiring.")
-    sys.exit(1)
-
+# Botni ishga tushirish
 app = Client(
     "render_userbot", 
-    api_id=int(API_ID), 
+    api_id=int(API_ID) if API_ID else 0, 
     api_hash=API_HASH, 
     session_string=SESSION_STRING
 )
 
-SOURCE_CHANNEL = "@tuztuzttt"
-TARGET_CHANNEL = "@eltuzaar_uz"
-
-# 4. Link almashtirish funksiyasi
-def get_edited_message(message: Message):
+# ================= MANTIQ =================
+def edit_logic(message: Message):
     text = message.caption or message.text
     if not text: return None, []
     
+    # Linklarni almashtirish
     new_text = text.replace("https://t.me/eltuzar_live", "https://t.me/eltuzaar_uz")
     entities = copy.deepcopy(message.caption_entities or message.entities or [])
     
@@ -58,25 +57,23 @@ def get_edited_message(message: Message):
                 entity.url = "https://t.me/eltuzaar_uz"
     return new_text, entities
 
-# 5. Xabarni ushlash
-@app.on_message(filters.chat(SOURCE_CHANNEL))
-async def forward_and_edit(client: Client, message: Message):
-    new_text, new_entities = get_edited_message(message)
+@app.on_message(filters.chat("@tuztuzttt"))
+async def forwarder(client: Client, message: Message):
+    new_text, new_entities = edit_logic(message)
     try:
         if message.photo:
-            await client.send_photo(TARGET_CHANNEL, photo=message.photo.file_id, caption=new_text, caption_entities=new_entities)
+            await client.send_photo("@eltuzaar_uz", photo=message.photo.file_id, caption=new_text, caption_entities=new_entities)
         elif message.video:
-            await client.send_video(TARGET_CHANNEL, video=message.video.file_id, caption=new_text, caption_entities=new_entities)
+            await client.send_video("@eltuzaar_uz", video=message.video.file_id, caption=new_text, caption_entities=new_entities)
         elif message.text:
-            await client.send_message(TARGET_CHANNEL, text=new_text, entities=new_entities)
-        print("✅ Post muvaffaqiyatli tahrirlanib, yuborildi!")
+            await client.send_message("@eltuzaar_uz", text=new_text, entities=new_entities)
     except Exception as e:
-        print(f"❌ Yuborishda xato: {e}")
+        print(f"Xabar uzatishda xato: {e}")
 
-# 6. Botni ishga tushirish
+# ================= ISHGA TUSHIRISH =================
 async def main():
     await app.start()
-    print("🚀 Bot xavfsiz ishga tushdi!")
+    print("🚀 Bot muvaffaqiyatli ishga tushdi!")
     await asyncio.Event().wait()
 
 if __name__ == "__main__":
