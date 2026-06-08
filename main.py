@@ -1,5 +1,12 @@
-import os
+import sys
 import asyncio
+
+# MUHIM: Pyrogram import qilinishidan oldin sync'ni o'chiramiz
+class FakeSync:
+    def __getattr__(self, name): return None
+sys.modules["pyrogram.sync"] = FakeSync()
+
+import os
 from flask import Flask
 from threading import Thread
 from pyrogram import Client, filters
@@ -24,7 +31,7 @@ async def start_bot():
     target_channel = os.environ.get("TARGET_CHANNEL")
 
     if not all([api_id, api_hash, session_string, source_channel, target_channel]):
-        print("❌ Xatolik: Kerakli muhit o'zgaruvchilari (ENV) topilmadi!")
+        print("❌ Xatolik: ENV o'zgaruvchilari topilmadi!")
         return
 
     app = Client("render_userbot", api_id=int(api_id), api_hash=api_hash, session_string=session_string)
@@ -35,27 +42,22 @@ async def start_bot():
         
         # 1. Jami matn uzunligi 1024 dan kam bo'lsa (Media + Matn birga)
         if len(text) <= 1024:
-            if message.photo: 
-                await client.send_photo(target_channel, message.photo.file_id, caption=text)
-            elif message.video: 
-                await client.send_video(target_channel, message.video.file_id, caption=text)
-            else: 
-                await client.send_message(target_channel, text)
+            if message.photo: await client.send_photo(target_channel, message.photo.file_id, caption=text)
+            elif message.video: await client.send_video(target_channel, message.video.file_id, caption=text)
+            else: await client.send_message(target_channel, text)
             
         # 2. Jami matn uzunligi 1024 dan oshsa (Media + Matnni ajratish)
         else:
-            # Media qismi (faqat media)
-            if message.photo: 
-                await client.send_photo(target_channel, message.photo.file_id)
-            elif message.video: 
-                await client.send_video(target_channel, message.video.file_id)
+            if message.photo: await client.send_photo(target_channel, message.photo.file_id)
+            elif message.video: await client.send_video(target_channel, message.video.file_id)
             
-            # Matn qismi (4096 belgidan bo'lib yuborish)
+            # Matnni 4096 belgilik qismlarga bo'lib yuborish
             for i in range(0, len(text), 4096):
                 await client.send_message(target_channel, text[i:i+4096])
 
     await app.start()
     print(f"🚀 Bot ishga tushdi! Kuzatilmoqda: {source_channel}")
+    # Event loopni ushlab turish
     await asyncio.Event().wait()
 
 if __name__ == "__main__":
