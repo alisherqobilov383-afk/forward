@@ -36,8 +36,8 @@ API_ID = int(os.environ.get("API_ID", 0))
 API_HASH = os.environ.get("API_HASH", "")
 SESSION_STRING = os.environ.get("SESSION_STRING", "")
 
-SOURCE_CHANNEL = "@tuztuzttt"  # Kuzatiladigan begona kanal
-TARGET_CHANNEL = "@surxon_24_live"    # Post tashlanadigan o'zingizning kanaliz
+SOURCE_CHANNEL = "@eltuzar_live"  # Kuzatiladigan begona kanal
+TARGET_CHANNEL = "@eltuzar_livee"    # Post tashlanadigan o'zingizning kanaliz
 
 # Render serverida faqat SESSION_STRING orqali ishlaydi
 if SESSION_STRING:
@@ -57,8 +57,8 @@ def edit_caption_text(message: Message):
     entities = copy.deepcopy(message.caption_entities or message.entities or [])
 
     MY_BOT_LINK = "https://t.me/eltuzar_uz_bot"  
-    MY_LIVE_LINK = "https://t.me/eltuzaar_uz"  
-    MY_MEDIA_LINK = "https://t.me/eltuzaar_uz"  
+    MY_LIVE_LINK = "https://t.me/eltuzar_livee"  
+    MY_MEDIA_LINK = "https://t.me/eltuzar_mediaa"  
     MY_X_LINK = "https://x.com/eltuzar_uz"  
     MY_INSTA_LINK = "https://www.instagram.com/eltuzar_uz"  
     MY_FB_LINK = "https://www.facebook.com/profile.php?id=61585818251235"  
