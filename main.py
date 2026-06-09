@@ -79,7 +79,7 @@ async def start_bot():
     session_string = os.environ.get("SESSION_STRING")
 
     # Manbalar va Targetlar (ENV dan olinadi)
-    S1, T1 = os.environ.get("SOURCE_1", "@eltuzar_live"), os.environ.get("TARGET_1", "@eltuzar_livee")
+    S1, T1 = os.environ.get("SOURCE_1", "@tuztuzttt"), os.environ.get("TARGET_1", "@eltuzar_livee")
     S2, T2 = os.environ.get("SOURCE_2", "@eltuzar_media"), os.environ.get("TARGET_2", "@eltuzar_mediaa")
     S3, T3 = os.environ.get("SOURCE_3", "@kanal3"), os.environ.get("TARGET_3", "@target3")
 
