@@ -40,6 +40,8 @@ def get_updated_entities(message):
     return entities
 
 async def start_bot():
+    from pyrogram import Client, filters
+
     app = Client(
         "render_userbot", 
         api_id=int(os.environ.get("API_ID")), 
@@ -47,9 +49,13 @@ async def start_bot():
         session_string=os.environ.get("SESSION_STRING")
     )
 
-     S1, T1 = "@tuztuzttt", "@wergfdgsdfsfwerw"
-    S2, T2 = "@tuztuzttt", "@eltuzar_mediaa"
+    # Mana shu qatorlar start_bot funksiyasining ichida 4 ta probel (yoki 1 ta TAB) bilan yozilishi shart:
+    S1, T1 = "@tuztuzttt", "@wergfdgsdfsfwerw"
+    S2, T2 = "@eltuzar_media", "@eltuzar_mediaa"
 
+    @app.on_message(filters.chat(S1))
+    async def handler_1(client, message):
+        
     # 1-KANAL
     @app.on_message(filters.chat(S1))
     async def handler_1(client, message):
