@@ -2,17 +2,16 @@ import sys
 import os
 import asyncio
 import copy
+from flask import Flask
+from threading import Thread
+from pyrogram import Client
+from pyrogram.enums import MessageEntityType
+from pyrogram.types import Message
 
 # PYROGRAM SYNC MODULINI O'CHIRISH
 class FakeSync:
     def __getattr__(self, name): return None
 sys.modules["pyrogram.sync"] = FakeSync()
-
-from flask import Flask
-from threading import Thread
-from pyrogram import Client, filters
-from pyrogram.enums import MessageEntityType
-from pyrogram.types import Message
 
 # ================= SERVER (UPTIME) =================
 flask_app = Flask("")
@@ -26,11 +25,11 @@ Thread(target=run_flask, daemon=True).start()
 
 # ================= MANTIQ FUNKSIYALARI =================
 
-def get_processed_content(message: Message, is_ch3: bool = False):
+# 1-kanal uchun alohida logika
+def process_channel_1(message: Message):
     text = message.caption or message.text or ""
     entities = copy.deepcopy(message.caption_entities or message.entities or [])
-    
-    for entity in entities:
+  for entity in entities:
         if entity.type == MessageEntityType.TEXT_LINK:
             word = text[entity.offset : entity.offset + entity.length].upper()
             if any(x in word for x in ["ХАБАРИНГИЗНИ ЮБОРМОҚЧИ БЎЛСАНГИЗ УШБУ ҲАВОЛА УСТИГА БОСИНГ", "ЮБОРМОҚЧИ", "УШБУ"]):
@@ -47,56 +46,67 @@ def get_processed_content(message: Message, is_ch3: bool = False):
                 entity.url = "https://www.facebook.com/profile.php?id=61585818251235"
     return text, entities
 
+# 2-kanal uchun alohida logika
+def process_channel_2(message: Message):
+    text = message.caption or message.text or ""
+    footer = "\n\n[ХАБАРИНГИЗНИ ЮБОРМОҚЧИ БЎЛСАНГИЗ УШБУ ҲАВОЛА УСТИГА БОСИНГ 👈](https://t.me/eltuzar_uz_bot)"
+    return f"{text}{footer}", []
+
+# 3-kanal uchun alohida logika (Buni o'zingiz xohlagancha o'zgartiring)
+def process_channel_3(message: Message):
+    text = message.caption or message.text or ""
+    entities = copy.deepcopy(message.caption_entities or message.entities or [])
+    for entity in entities:
+        if entity.type == MessageEntityType.TEXT_LINK:
+            word = text[entity.offset : entity.offset + entity.length].upper()
+            if "LIVE" in word:
+                entity.url = "https://t.me/eltuzar_livee"
+    return text, entities
+
 # ================= ASOSIY BOT =================
 async def start_bot():
     api_id = os.environ.get("API_ID")
     api_hash = os.environ.get("API_HASH")
     session_string = os.environ.get("SESSION_STRING")
 
-    # Manbalar va Targetlar (ENV dan olinadi)
-    S1, T1 = os.environ.get("SOURCE_1", "@eltuzar_live"), os.environ.get("TARGET_1", "@eltuzar_livee")
+    S1, T1 = os.environ.get("SOURCE_1", "@tuztuzttt"), os.environ.get("TARGET_1", "@eltuzar_livee")
     S2, T2 = os.environ.get("SOURCE_2", "@tuztuzttt"), os.environ.get("TARGET_2", "@eltuzar_mediaa")
-    S3, T3 = os.environ.get("SOURCE_3", ""), os.environ.get("TARGET_3", "@wergfdgsdfsfwerw")
+    S3, T3 = os.environ.get("SOURCE_3", "@tuztuzttt"), os.environ.get("TARGET_3", "@wergfdgsdfsfwerw")
 
     app = Client("render_userbot", api_id=int(api_id), api_hash=api_hash, session_string=session_string)
 
-    @app.on_message(filters.chat([S1, S2, S3]))
+    @app.on_message()
     async def forward_and_edit(client: Client, message: Message):
-        # Kanal nomini aniqlash
+        if not message.chat: return
         chat_identifier = f"@{message.chat.username}" if message.chat.username else str(message.chat.id)
         
-        # 1-KANAL
+        # 1-KANAL BLOKI
         if chat_identifier == S1:
-            txt, ent = get_processed_content(message)
+            txt, ent = process_channel_1(message)
             try:
                 if message.photo: await client.send_photo(T1, photo=message.photo.file_id, caption=txt, caption_entities=ent)
-                elif message.video: await client.send_video(T1, video=message.video.file_id, caption=txt, caption_entities=ent)
-                elif message.audio: await client.send_audio(T1, audio=message.audio.file_id, caption=txt, caption_entities=ent)
                 elif message.text: await client.send_message(T1, text=txt, entities=ent)
             except Exception as e: print(f"Error 1: {e}")
 
-        # 2-KANAL
-        elif chat_identifier == S2:
-            text = message.caption or message.text or ""
-            footer = "\n\n[ХАБАРИНГИЗНИ ЮБОРМОҚЧИ БЎЛСАНГИЗ УШБУ ҲАВОЛА УСТИГА БОСИНГ 👈](https://t.me/eltuzar_uz_bot)"
-            new_text = f"{text}{footer}"
+        # 2-KANAL BLOKI
+        if chat_identifier == S2:
+            txt, ent = process_channel_2(message)
             try:
-                if message.photo: await client.send_photo(T2, photo=message.photo.file_id, caption=new_text)
-                elif message.video: await client.send_video(T2, video=message.video.file_id, caption=new_text)
-                elif message.text: await client.send_message(T2, text=new_text)
+                if message.photo: await client.send_photo(T2, photo=message.photo.file_id, caption=txt)
+                elif message.text: await client.send_message(T2, text=txt)
             except Exception as e: print(f"Error 2: {e}")
 
-        # 3-KANAL
-        elif chat_identifier == S3:
-            txt, ent = get_processed_content(message)
+        # 3-KANAL BLOKI
+        if chat_identifier == S3:
+            txt, ent = process_channel_3(message)
             try:
                 if message.photo: await client.send_photo(T3, photo=message.photo.file_id, caption=txt, caption_entities=ent)
                 elif message.text: await client.send_message(T3, text=txt, entities=ent)
             except Exception as e: print(f"Error 3: {e}")
 
     await app.start()
-    print("🚀 Bot ishga tushdi va 3 ta kanalni kuzatmoqda!")
-    await asyncio.Event().wait() # Bot to'xtab qolmasligi uchun
+    print("🚀 Bot ishga tushdi va 3 ta kanalni mustaqil kuzatmoqda!")
+    await asyncio.Event().wait()
 
 if __name__ == "__main__":
     asyncio.run(start_bot())
