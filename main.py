@@ -50,7 +50,7 @@ async def start_bot():
     )
 
     S1, T1 = "@tuztuzttt", "@wergfdgsdfsfwerw"
-    S2, T2 = "@eltuzar_media", "@eltuzar_mediaa"
+    S2, T2 = "@tuztuzttt", "@eltuzar_mediaa"
 
     @app.on_message(filters.chat(S1))
     async def handler_1(client, message):
