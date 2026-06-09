@@ -8,11 +8,6 @@ from pyrogram import Client
 from pyrogram.enums import MessageEntityType
 from pyrogram.types import Message
 
-# PYROGRAM SYNC MODULINI O'CHIRISH
-class FakeSync:
-    def __getattr__(self, name): return None
-sys.modules["pyrogram.sync"] = FakeSync()
-
 # ================= SERVER (UPTIME) =================
 flask_app = Flask("")
 @flask_app.route("/")
@@ -21,11 +16,11 @@ def home(): return "Bot 24/7 ishlamoqda!"
 def run_flask():
     flask_app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
 
+# Flask'ni asosiy oqimda emas, thread'da ishga tushirish uchun:
 Thread(target=run_flask, daemon=True).start()
 
 # ================= MANTIQ FUNKSIYALARI =================
 
-# 1-kanal uchun alohida logika
 def process_channel_1(message: Message):
     text = message.caption or message.text or ""
     entities = copy.deepcopy(message.caption_entities or message.entities or [])
@@ -38,21 +33,13 @@ def process_channel_1(message: Message):
                 entity.url = "https://t.me/eltuzar_livee"
             elif "MEDIA" in word:
                 entity.url = "https://t.me/eltuzar_mediaa"
-            elif "X" in word and len(word) == 1:
-                entity.url = "https://x.com/eltuzar_uz"
-            elif "INSTAGRAM" in word:
-                entity.url = "https://www.instagram.com/eltuzaar_uz"
-            elif "FACEBOOK" in word:
-                entity.url = "https://www.facebook.com/profile.php?id=61585818251235"
     return text, entities
 
-# 2-kanal uchun alohida logika
 def process_channel_2(message: Message):
     text = message.caption or message.text or ""
     footer = "\n\n[ХАБАРИНГИЗНИ ЮБОРМОҚЧИ БЎЛСАНГИЗ УШБУ ҲАВОЛА УСТИГА БОСИНГ 👈](https://t.me/eltuzar_uz_bot)"
     return f"{text}{footer}", []
 
-# 3-kanal uchun alohida logika
 def process_channel_3(message: Message):
     text = message.caption or message.text or ""
     entities = copy.deepcopy(message.caption_entities or message.entities or [])
@@ -64,7 +51,7 @@ def process_channel_3(message: Message):
     return text, entities
 
 # ================= ASOSIY BOT =================
-async def start_bot():
+async def main():
     api_id = os.environ.get("API_ID")
     api_hash = os.environ.get("API_HASH")
     session_string = os.environ.get("SESSION_STRING")
@@ -80,7 +67,6 @@ async def start_bot():
         if not message.chat: return
         chat_identifier = f"@{message.chat.username}" if message.chat.username else str(message.chat.id)
         
-        # 1-KANAL BLOKI
         if chat_identifier == S1:
             txt, ent = process_channel_1(message)
             try:
@@ -88,7 +74,6 @@ async def start_bot():
                 elif message.text: await client.send_message(T1, text=txt, entities=ent)
             except Exception as e: print(f"Error 1: {e}")
 
-        # 2-KANAL BLOKI
         if chat_identifier == S2:
             txt, ent = process_channel_2(message)
             try:
@@ -96,7 +81,6 @@ async def start_bot():
                 elif message.text: await client.send_message(T2, text=txt)
             except Exception as e: print(f"Error 2: {e}")
 
-        # 3-KANAL BLOKI
         if chat_identifier == S3:
             txt, ent = process_channel_3(message)
             try:
@@ -105,8 +89,8 @@ async def start_bot():
             except Exception as e: print(f"Error 3: {e}")
 
     await app.start()
-    print("🚀 Bot ishga tushdi va 3 ta kanalni mustaqil kuzatmoqda!")
+    print("🚀 Bot ishga tushdi!")
     await asyncio.Event().wait()
 
 if __name__ == "__main__":
-    asyncio.run(start_bot())
+    asyncio.run(main())
