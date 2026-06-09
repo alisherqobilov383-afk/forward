@@ -18,13 +18,14 @@ Thread(target=run_flask, daemon=True).start()
 # --- MANTIQ FUNKSIYALARI ---
 
 def edit_caption_links(message):
-    """1-kanal uchun linklarni tahrirlash logikasi"""
-    text = message.caption or message.text
-    if not text: return "", []
-    entities = copy.deepcopy(message.caption_entities or message.entities or [])
+    """1-kanal uchun linklarni tahrirlash"""
+    text = message.caption or message.text or ""
+    entities = message.caption_entities or message.entities or []
     
-    for entity in entities:
-        if entity.type == "text_link": 
+    new_entities = copy.deepcopy(entities)
+    
+    for entity in new_entities:
+        if entity.type == "text_link":
             word = text[entity.offset : entity.offset + entity.length].upper()
             if any(x in word for x in ["ХАБАРИНГИЗНИ ЮБОРМОҚЧИ БЎЛСАНГИЗ УШБУ ҲАВОЛА УСТИГА БОСИНГ", "ЮБОРМОҚЧИ", "УШБУ"]):
                 entity.url = "https://t.me/eltuzar_uz_bot"
@@ -38,13 +39,12 @@ def edit_caption_links(message):
                 entity.url = "https://www.instagram.com/eltuzaar_uz"
             elif "FACEBOOK" in word:
                 entity.url = "https://www.facebook.com/profile.php?id=61585818251235"
-    return text, entities
+    return text, new_entities
 
 # --- ASOSIY BOT ---
 async def start_bot():
     from pyrogram import Client, filters
 
-    # API ma'lumotlari Render'ning Environment Variables'idan olinadi
     app = Client(
         "render_userbot", 
         api_id=int(os.environ.get("API_ID")), 
@@ -52,7 +52,7 @@ async def start_bot():
         session_string=os.environ.get("SESSION_STRING")
     )
 
-    # KANAL MANZILLARI (Shu yerni o'zingizga moslab o'zgartiring)
+    # KANAL MANZILLARI (O'zingizga moslang)
     S1, T1 = "@tuztuzttt", "@wergfdgsdfsfwerw"
     S2, T2 = "@tuztuzttt", "@eltuzar_mediaa"
 
@@ -60,10 +60,12 @@ async def start_bot():
     @app.on_message(filters.chat(S1))
     async def handler_1(client, message):
         txt, ent = edit_caption_links(message)
-        try: 
-            await message.copy(T1, caption=txt, caption_entities=ent)
-        except Exception as e: 
-            print(f"Error Channel 1: {e}")
+        try:
+            if message.photo: await client.send_photo(T1, photo=message.photo.file_id, caption=txt, caption_entities=ent)
+            elif message.video: await client.send_video(T1, video=message.video.file_id, caption=txt, caption_entities=ent)
+            elif message.audio: await client.send_audio(T1, audio=message.audio.file_id, caption=txt, caption_entities=ent)
+            else: await client.send_message(T1, text=txt, entities=ent)
+        except Exception as e: print(f"Error Channel 1: {e}")
 
     # 2-KANAL HANDLERI
     @app.on_message(filters.chat(S2))
@@ -71,16 +73,19 @@ async def start_bot():
         text = message.caption or message.text or ""
         footer = "\n\n[ХАБАРИНГИЗНИ ЮБОРМОҚЧИ БЎЛСАНГИЗ УШБУ ҲАВОЛА УСТИГА БОСИНГ 👈](https://t.me/eltuzar_uz_bot)"
         new_text = f"{text}{footer}"
-        try: 
-            await message.copy(T2, caption=new_text)
-        except Exception as e: 
-            print(f"Error Channel 2: {e}")
+        try:
+            if message.photo: await client.send_photo(T2, photo=message.photo.file_id, caption=new_text)
+            elif message.video: await client.send_video(T2, video=message.video.file_id, caption=new_text)
+            else: await client.send_message(T2, text=new_text)
+        except Exception as e: print(f"Error Channel 2: {e}")
 
     await app.start()
-    print("🚀 Bot ishga tushdi va 1- hamda 2-kanalni alohida kuzatmoqda!")
+    print("🚀 Bot ishga tushdi!")
     await asyncio.Event().wait()
 
 if __name__ == "__main__":
     loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    loop.run_until_complete(start_bot())
     asyncio.set_event_loop(loop)
     loop.run_until_complete(start_bot())
