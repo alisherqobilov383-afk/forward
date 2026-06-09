@@ -26,33 +26,8 @@ Thread(target=run_flask, daemon=True).start()
 
 # ================= MANTIQ FUNKSIYALARI =================
 
-# 1-kanal uchun (Siz yuborgan logika)
-def edit_caption_text(message: Message):
-    text = message.caption or message.text
-    if not text: return "", []
-    entities = copy.deepcopy(message.caption_entities or message.entities or [])
-    
-    for entity in entities:
-        if entity.type == MessageEntityType.TEXT_LINK:
-            word = text[entity.offset : entity.offset + entity.length].upper()
-            if any(x in word for x in ["ХАБАРИНГИЗНИ ЮБОРМОҚЧИ БЎЛСАНГИЗ УШБУ ҲАВОЛА УСТИГА БОСИНГ", "ЮБОРМОҚЧИ", "УШБУ"]):
-                entity.url = "https://t.me/eltuzar_uz_bot"
-            elif "LIVE" in word:
-                entity.url = "https://t.me/eltuzar_livee"
-            elif "MEDIA" in word:
-                entity.url = "https://t.me/eltuzar_mediaa"
-            elif "X" in word and len(word) == 1:
-                entity.url = "https://x.com/eltuzar_uz"
-            elif "INSTAGRAM" in word:
-                entity.url = "https://www.instagram.com/eltuzaar_uz"
-            elif "FACEBOOK" in word:
-                entity.url = "https://www.facebook.com/profile.php?id=61585818251235"
-    return text, entities
-
-# 3-kanal uchun (Boshqacha linklar uchun)
-def edit_caption_text(message: Message):
-    text = message.caption or message.text
-    if not text: return "", []
+def get_processed_content(message: Message, is_ch3: bool = False):
+    text = message.caption or message.text or ""
     entities = copy.deepcopy(message.caption_entities or message.entities or [])
     
     for entity in entities:
@@ -87,20 +62,21 @@ async def start_bot():
 
     @app.on_message(filters.chat([S1, S2, S3]))
     async def forward_and_edit(client: Client, message: Message):
-        chat = f"@{message.chat.username}" if message.chat.username else str(message.chat.id)
+        # Kanal nomini aniqlash
+        chat_identifier = f"@{message.chat.username}" if message.chat.username else str(message.chat.id)
         
-        # 1-KANAL: Linklar o'zgarishi bilan
-        if chat == S1:
-            txt, ent = edit_caption_ch1(message)
+        # 1-KANAL
+        if chat_identifier == S1:
+            txt, ent = get_processed_content(message)
             try:
                 if message.photo: await client.send_photo(T1, photo=message.photo.file_id, caption=txt, caption_entities=ent)
                 elif message.video: await client.send_video(T1, video=message.video.file_id, caption=txt, caption_entities=ent)
-                elif message.audio or message.voice: await client.send_audio(T1, audio=(message.audio or message.voice).file_id, caption=txt, caption_entities=ent)
+                elif message.audio: await client.send_audio(T1, audio=message.audio.file_id, caption=txt, caption_entities=ent)
                 elif message.text: await client.send_message(T1, text=txt, entities=ent)
             except Exception as e: print(f"Error 1: {e}")
 
-        # 2-KANAL: Xabar pastida havola
-        elif chat == S2:
+        # 2-KANAL
+        elif chat_identifier == S2:
             text = message.caption or message.text or ""
             footer = "\n\n[ХАБАРИНГИЗНИ ЮБОРМОҚЧИ БЎЛСАНГИЗ УШБУ ҲАВОЛА УСТИГА БОСИНГ 👈](https://t.me/eltuzar_uz_bot)"
             new_text = f"{text}{footer}"
@@ -110,9 +86,9 @@ async def start_bot():
                 elif message.text: await client.send_message(T2, text=new_text)
             except Exception as e: print(f"Error 2: {e}")
 
-        # 3-KANAL: Boshqacha linklar bilan
-        elif chat == S3:
-            txt, ent = edit_caption_ch3(message)
+        # 3-KANAL
+        elif chat_identifier == S3:
+            txt, ent = get_processed_content(message)
             try:
                 if message.photo: await client.send_photo(T3, photo=message.photo.file_id, caption=txt, caption_entities=ent)
                 elif message.text: await client.send_message(T3, text=txt, entities=ent)
@@ -120,7 +96,7 @@ async def start_bot():
 
     await app.start()
     print("🚀 Bot ishga tushdi va 3 ta kanalni kuzatmoqda!")
-    while True: await asyncio.sleep(3600)
+    await asyncio.Event().wait() # Bot to'xtab qolmasligi uchun
 
 if __name__ == "__main__":
     asyncio.run(start_bot())
