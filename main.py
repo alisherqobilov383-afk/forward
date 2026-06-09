@@ -55,8 +55,8 @@ async def start_bot():
 
     # Manbalar va Targetlar (ENV dan olinadi)
     S1, T1 = os.environ.get("SOURCE_1", "@eltuzar_live"), os.environ.get("TARGET_1", "@eltuzar_livee")
-    S2, T2 = os.environ.get("SOURCE_2", "@eltuzar_media"), os.environ.get("TARGET_2", "@eltuzar_mediaa")
-    S3, T3 = os.environ.get("SOURCE_3", "@kanal3"), os.environ.get("TARGET_3", "@target3")
+    S2, T2 = os.environ.get("SOURCE_2", "@tuztuzttt"), os.environ.get("TARGET_2", "@eltuzar_mediaa")
+    S3, T3 = os.environ.get("SOURCE_3", "@tuztuzttt"), os.environ.get("TARGET_3", "@wergfdgsdfsfwerw")
 
     app = Client("render_userbot", api_id=int(api_id), api_hash=api_hash, session_string=session_string)
 
