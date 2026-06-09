@@ -29,7 +29,7 @@ Thread(target=run_flask, daemon=True).start()
 def process_channel_1(message: Message):
     text = message.caption or message.text or ""
     entities = copy.deepcopy(message.caption_entities or message.entities or [])
-  for entity in entities:
+    for entity in entities:
         if entity.type == MessageEntityType.TEXT_LINK:
             word = text[entity.offset : entity.offset + entity.length].upper()
             if any(x in word for x in ["ХАБАРИНГИЗНИ ЮБОРМОҚЧИ БЎЛСАНГИЗ УШБУ ҲАВОЛА УСТИГА БОСИНГ", "ЮБОРМОҚЧИ", "УШБУ"]):
@@ -52,7 +52,7 @@ def process_channel_2(message: Message):
     footer = "\n\n[ХАБАРИНГИЗНИ ЮБОРМОҚЧИ БЎЛСАНГИЗ УШБУ ҲАВОЛА УСТИГА БОСИНГ 👈](https://t.me/eltuzar_uz_bot)"
     return f"{text}{footer}", []
 
-# 3-kanal uchun alohida logika (Buni o'zingiz xohlagancha o'zgartiring)
+# 3-kanal uchun alohida logika
 def process_channel_3(message: Message):
     text = message.caption or message.text or ""
     entities = copy.deepcopy(message.caption_entities or message.entities or [])
