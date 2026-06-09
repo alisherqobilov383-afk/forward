@@ -53,8 +53,8 @@ async def start_bot():
     )
 
     # KANAL MANZILLARI (Shu yerni o'zingizga moslab o'zgartiring)
-    S1, T1 = "@eltuzar_live", "@eltuzar_livee"
-    S2, T2 = "@eltuzar_media", "@eltuzar_mediaa"
+    S1, T1 = "@tuztuzttt", "@wergfdgsdfsfwerw"
+    S2, T2 = "@tuztuzttt", "@eltuzar_mediaa"
 
     # 1-KANAL HANDLERI
     @app.on_message(filters.chat(S1))
