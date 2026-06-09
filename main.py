@@ -79,23 +79,38 @@ def edit_caption_text(message: Message):
 
 
 # ================= XABARLARNI USHLASH =================
-@app.on_message(filters.chat(SOURCE_CHANNEL))
+# filters.chat ni olib tashladik, chunki u Peer id invalid xatosini beryapti
+@app.on_message() 
 async def forward_and_edit(client: Client, message: Message):
-    try:
-        new_text, new_entities = edit_caption_text(message)
-        if not new_text: return
+    # Kanal username'ini to'g'ri formatga keltiramiz
+    chat_identifier = f"@{message.chat.username}" if message.chat.username else str(message.chat.id)
+    
+    # SOURCE_CHANNELS ro'yxatida bormi yoki yo'qligini tekshiramiz
+    if chat_identifier in SOURCE_CHANNELS:
+        try:
+            # Qaysi targetga yuborishni aniqlab olamiz
+            idx = SOURCE_CHANNELS.index(chat_identifier)
+            target = TARGET_CHANNELS[idx]
+            
+            # Matn va entitylarni ishlash
+            new_text, new_entities = edit_caption_text(message)
+            if not new_text: return
 
-        if message.photo:
-            await client.send_photo(chat_id=TARGET_CHANNEL, photo=message.photo.file_id, caption=new_text, caption_entities=new_entities)
-        elif message.video:
-            await client.send_video(chat_id=TARGET_CHANNEL, video=message.video.file_id, caption=new_text, caption_entities=new_entities)
-        elif message.audio or message.voice:
-            file_id = message.audio.file_id if message.audio else message.voice.file_id
-            await client.send_audio(chat_id=TARGET_CHANNEL, audio=file_id, caption=new_text, caption_entities=new_entities)
-        elif message.text:
-            await client.send_message(chat_id=TARGET_CHANNEL, text=new_text, entities=new_entities)
-    except Exception as e:
-        print(f"❌ Xabar uzatishda xatolik: {e}")
+            # Yuborish
+            if message.photo:
+                await client.send_photo(chat_id=target, photo=message.photo.file_id, caption=new_text, caption_entities=new_entities)
+            elif message.video:
+                await client.send_video(chat_id=target, video=message.video.file_id, caption=new_text, caption_entities=new_entities)
+            elif message.audio or message.voice:
+                file_id = message.audio.file_id if message.audio else message.voice.file_id
+                await client.send_audio(chat_id=target, audio=file_id, caption=new_text, caption_entities=new_entities)
+            elif message.text:
+                await client.send_message(chat_id=target, text=new_text, entities=new_entities)
+                
+            print(f"✅ Xabar {chat_identifier} dan {target} ga muvaffaqiyatli yuborildi!")
+            
+        except Exception as e:
+            print(f"❌ Xabar uzatishda xatolik: {e}")
 
 
 # ================= BOTNI 24/7 ISHLATISH VA AVTO-RESTART =================
