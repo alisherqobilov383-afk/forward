@@ -1,80 +1,74 @@
-import sys
 import os
-import asyncio
-import copy
+import logging
+from telethon import TelegramClient, events
+from telethon.sessions import StringSession
 from flask import Flask
 from threading import Thread
 
-# --- SERVER ---
-flask_app = Flask("")
-@flask_app.route("/")
-def home(): return "Bot 24/7 ishlamoqda!"
+# Render'dan o'zgaruvchilarni qabul qilish
+API_ID = int(os.environ.get('API_ID'))
+API_HASH = os.environ.get('API_HASH')
+SESSION_STRING = os.environ.get('SESSION_STRING')
 
-def run_flask():
-    flask_app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
+# Kanallar
+SOURCE_CHANNEL = 'tuztuzttt'
+TARGET_CHANNEL = 'eltuzar_livee'
 
-Thread(target=run_flask, daemon=True).start()
+# Flask (Uptime ushlab turish uchun)
+app = Flask(__name__)
+@app.route('/')
+def home():
+    return "Bot 24/7 ishlamoqda!"
 
-# --- ASOSIY BOT ---
-async def start_bot():
-    from pyrogram import Client, filters
-    from pyrogram.enums import MessageEntityType
+# Logging
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 
-    def get_updated_entities(message):
-        text = message.caption or message.text or ""
-        entities = copy.deepcopy(message.caption_entities or message.entities or [])
-        for entity in entities:
-            if entity.type == MessageEntityType.TEXT_LINK:
-                word = text[entity.offset : entity.offset + entity.length].upper()
-                if any(x in word for x in ["ХАБАРИНГИЗНИ ЮБОРМОҚЧИ БЎЛСАНГИЗ УШБУ ҲАВОЛА УСТИГА БОСИНГ", "ЮБОРМОҚЧИ", "УШБУ"]):
-                    entity.url = "https://t.me/eltuzar_uz_bot"
-                elif "LIVE" in word:
-                    entity.url = "https://t.me/eltuzar_livee"
-                elif "MEDIA" in word:
-                    entity.url = "https://t.me/eltuzar_mediaa"
-                elif "X" in word and len(word) == 1:
-                    entity.url = "https://x.com/eltuzar_uz"
-                elif "INSTAGRAM" in word:
-                    entity.url = "https://www.instagram.com/eltuzaar_uz"
-                elif "FACEBOOK" in word:
-                    entity.url = "https://www.facebook.com/profile.php?id=61585818251235"
-        return entities
+# Client
+client = TelegramClient(StringSession(SESSION_STRING), API_ID, API_HASH)
 
-    app = Client(
-        "render_userbot", 
-        api_id=int(os.environ.get("API_ID")), 
-        api_hash=os.environ.get("API_HASH"), 
-        session_string=os.environ.get("SESSION_STRING")
-    )
+def modify_entities(entities):
+    if not entities:
+        return None
+    
+    for entity in entities:
+        if hasattr(entity, 'url') and entity.url:
+            url = entity.url.upper()
+            if any(x in url for x in ["ХАБАРИНГИЗНИ ЮБОРМОҚЧИ БЎЛСАНГИЗ УШБУ ҲАВОЛА УСТИГА БОСИНГ", "ЮБОРМОҚЧИ", "УШБУ"]):
+                entity.url = "https://t.me/eltuzar_uz_bot"
+            elif "LIVE" in url:
+                entity.url = "https://t.me/eltuzar_livee"
+            elif "MEDIA" in url:
+                entity.url = "https://t.me/eltuzar_mediaa"
+            elif "X.COM" in url:
+                entity.url = "https://x.com/eltuzar_uz"
+            elif "INSTAGRAM" in url:
+                entity.url = "https://www.instagram.com/eltuzaar_uz"
+            elif "FACEBOOK" in url:
+                entity.url = "https://www.facebook.com/profile.php?id=61585818251235"
+    return entities
 
-    S1, T1 = "eltuzar_live", "eltuzar_livee"
-    S2, T2 = "eltuzar_media", "eltuzar_mediaa"
-
-    @app.on_message(filters.chat([S1, S2])) # Ikkala kanalni birdaniga ushlaymiz
-    async def global_handler(client, message):
-        chat_id = str(message.chat.username)
-        print(f"Xabar keldi! Kanal: {chat_id}, ID: {message.id}") # Log qo'shildi
+@client.on(events.NewMessage(chats=SOURCE_CHANNEL))
+async def handler(event):
+    try:
+        # Xabarni nusxalash va havolalarni o'zgartirish
+        new_entities = modify_entities(event.message.entities)
         
-        # 1-Kanal logikasi
-        if chat_id == "eltuzar_live":
-            ents = get_updated_entities(message)
-            try:
-                await client.copy_message(chat_id=T1, from_chat_id=message.chat.id, message_id=message.id, caption=message.caption or message.text, caption_entities=ents)
-            except Exception as e: print(f"Error 1: {e}")
-        
-        # 2-Kanal logikasi
-        elif chat_id == "eltuzar_media":
-            footer = "\n\n[ХАБАРИНГИЗНИ ЮБОРМОҚЧИ БЎЛСАНГИЗ УШБУ ҲАВОЛА УСТИГА БОСИНГ 👈](https://t.me/eltuzar_uz_bot)"
-            new_caption = (message.caption or message.text or "") + footer
-            try:
-                await client.copy_message(chat_id=T2, from_chat_id=message.chat.id, message_id=message.id, caption=new_caption)
-            except Exception as e: print(f"Error 2: {e}")
+        await client.send_message(
+            TARGET_CHANNEL,
+            message=event.message.text,
+            file=event.message.media,
+            formatting_entities=new_entities
+        )
+        logging.info("Xabar muvaffaqiyatli ko'chirildi.")
+    except Exception as e:
+        logging.error(f"Xabar uzatishda xatolik: {e}")
 
-    await app.start()
-    print("🚀 Bot ishga tushdi! Xabarlarni kutmoqda...")
-    await asyncio.Event().wait()
-
-if __name__ == "__main__":
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    loop.run_until_complete(start_bot())
+# Ishga tushirish
+if __name__ == '__main__':
+    # Flask serverini fon rejimida ishga tushirish
+    Thread(target=lambda: app.run(host='0.0.0.0', port=8080)).start()
+    
+    # Userbotni ishga tushirish
+    client.start()
+    logging.info("Userbot ishga tushdi...")
+    client.run_until_disconnected()
