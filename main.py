@@ -32,19 +32,14 @@ print("🌐 Web-server Render uchun muvaffaqiyatli ishga tushdi...")
 
 
 # ================= USERBOT SOZLAMALARI =================
-API_ID = int(os.environ.get("API_ID", 0))  
+API_ID = int(os.environ.get("API_ID", 0))
 API_HASH = os.environ.get("API_HASH", "")
 SESSION_STRING = os.environ.get("SESSION_STRING", "")
 
 SOURCE_CHANNEL = "@eltuzar_live"
 TARGET_CHANNEL = "@eltuzar_livee"
 
-if SESSION_STRING:
-    app = Client("render_userbot", api_id=API_ID, api_hash=API_HASH, session_string=SESSION_STRING)
-else:
-    app = Client("render_userbot", api_id=API_ID if API_ID != 0 else 31041560, 
-                                   api_hash=API_HASH if API_HASH != "" else "9a19946a1c73f1d1652636804903e176")
-
+app = Client("render_userbot", api_id=API_ID, api_hash=API_HASH, session_string=SESSION_STRING)
 
 # ================= GIPERSILKALARNI O'ZGARTIRISH =================
 def edit_caption_text(message: Message):
