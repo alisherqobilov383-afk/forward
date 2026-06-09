@@ -49,8 +49,8 @@ async def start_bot():
         session_string=os.environ.get("SESSION_STRING")
     )
 
-    S1, T1 = "@tuztuzttt", "@wergfdgsdfsfwerw"
-    S2, T2 = "@tuztuzttt", "@eltuzar_mediaa"
+    S1, T1 = "@wergfdgsdf345sfwerw", "@wergfdg345sdfsfwerw"
+    S2, T2 = "@tuztuzttt", "@wergfdgsdfsfwerw"
 
     @app.on_message(filters.chat(S1))
     async def handler_1(client, message):
