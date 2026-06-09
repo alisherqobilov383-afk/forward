@@ -4,6 +4,8 @@ import asyncio
 import copy
 from flask import Flask
 from threading import Thread
+from pyrogram import Client, filters
+from pyrogram.enums import MessageEntityType
 
 # --- SERVER ---
 flask_app = Flask("")
@@ -15,13 +17,17 @@ def run_flask():
 
 Thread(target=run_flask, daemon=True).start()
 
-# --- ASOSIY BOT ---
 async def start_bot():
-    from pyrogram import Client, filters
-    from pyrogram.enums import MessageEntityType
+    app = Client(
+        "render_userbot", 
+        api_id=int(os.environ.get("API_ID")), 
+        api_hash=os.environ.get("API_HASH"), 
+        session_string=os.environ.get("SESSION_STRING")
+    )
 
     def get_updated_entities(message):
         text = message.caption or message.text or ""
+        # Entitiylarni nusxalaymiz
         entities = copy.deepcopy(message.caption_entities or message.entities or [])
         for entity in entities:
             if entity.type == MessageEntityType.TEXT_LINK:
@@ -32,7 +38,7 @@ async def start_bot():
                     entity.url = "https://t.me/eltuzar_livee"
                 elif "MEDIA" in word:
                     entity.url = "https://t.me/eltuzar_mediaa"
-                elif "X" in word and len(word) == 1:
+                elif "X" == word:
                     entity.url = "https://x.com/eltuzar_uz"
                 elif "INSTAGRAM" in word:
                     entity.url = "https://www.instagram.com/eltuzaar_uz"
@@ -40,41 +46,41 @@ async def start_bot():
                     entity.url = "https://www.facebook.com/profile.php?id=61585818251235"
         return entities
 
-    app = Client(
-        "render_userbot", 
-        api_id=int(os.environ.get("API_ID")), 
-        api_hash=os.environ.get("API_HASH"), 
-        session_string=os.environ.get("SESSION_STRING")
-    )
+    await app.start()
+    
+    S1, T1 = "eltuzar_live", "eltuzar_livee"
+    S2, T2 = "eltuzar_media", "eltuzar_mediaa"
 
-    S1, T1 = "@eltuzar_live", "@eltuzar_livee"
-    S2, T2 = "@eltuzar_media", "@eltuzar_mediaa"
-
-    @app.on_message(filters.chat([S1, S2])) # Ikkala kanalni birdaniga ushlaymiz
+    @app.on_message(filters.chat([S1, S2]))
     async def global_handler(client, message):
-        chat_id = str(message.chat.username)
-        print(f"Xabar keldi! Kanal: {chat_id}, ID: {message.id}") # Log qo'shildi
-        
-        # 1-Kanal logikasi
-        if chat_id == "eltuzar_live":
+        chat_username = message.chat.username
+        print(f"Xabar keldi: @{chat_username}")
+
+        if chat_username == S1:
             ents = get_updated_entities(message)
             try:
-                await client.copy_message(chat_id=T1, from_chat_id=message.chat.id, message_id=message.id, caption=message.caption or message.text, caption_entities=ents)
+                await client.copy_message(
+                    chat_id=T1, 
+                    from_chat_id=message.chat.id, 
+                    message_id=message.id, 
+                    caption=message.caption or message.text,
+                    caption_entities=ents
+                )
             except Exception as e: print(f"Error 1: {e}")
         
-        # 2-Kanal logikasi
-        elif chat_id == "eltuzar_media":
+        elif chat_username == S2:
             footer = "\n\n[ХАБАРИНГИЗНИ ЮБОРМОҚЧИ БЎЛСАНГИЗ УШБУ ҲАВОЛА УСТИГА БОСИНГ 👈](https://t.me/eltuzar_uz_bot)"
             new_caption = (message.caption or message.text or "") + footer
             try:
-                await client.copy_message(chat_id=T2, from_chat_id=message.chat.id, message_id=message.id, caption=new_caption)
+                await client.copy_message(
+                    chat_id=T2, 
+                    from_chat_id=message.chat.id, 
+                    message_id=message.id, 
+                    caption=new_caption
+                )
             except Exception as e: print(f"Error 2: {e}")
 
-    await app.start()
-    print("🚀 Bot ishga tushdi! Xabarlarni kutmoqda...")
     await asyncio.Event().wait()
 
 if __name__ == "__main__":
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    loop.run_until_complete(start_bot())
+    asyncio.run(start_bot())
