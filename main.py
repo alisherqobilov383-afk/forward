@@ -57,7 +57,7 @@ def edit_caption_text(message: Message):
 # 4. Handler
 @app.on_message()
 async def forward_handler(client, message):
-    if message.chat and str(message.chat.username) == "eltuzar_live":
+    if message.chat and str(message.chat.username) == "@tuztuzttt":
         try:
             new_text, new_entities = edit_caption_text(message)
             target = "@eltuzar_livee"
