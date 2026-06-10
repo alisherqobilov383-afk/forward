@@ -30,13 +30,13 @@ SESSION_STRING = os.environ.get("SESSION_STRING", "")
 
 app = Client("userbot", api_id=API_ID, api_hash=API_HASH, session_string=SESSION_STRING)
 
-# 3. Funksiyalar
+# 3. Funksiyani tuzatish (matnni haqiqatdan o'zgartirish uchun)
 def edit_caption_text(message: Message):
     text = message.caption if message.caption else message.text
     if not text: return "", []
+    
     entities = copy.deepcopy(message.caption_entities or message.entities or [])
     
-    # Siz aytgan link o'zgartirishlar
     links = {
         "ХАБАРИНГИЗНИ": "https://t.me/eltuzar_uz_bot",
         "LIVE": "https://t.me/eltuzar_livee",
@@ -52,45 +52,25 @@ def edit_caption_text(message: Message):
             for key, val in links.items():
                 if key in word:
                     entity.url = val
+    
+    # Agar text o'zgarishi kerak bo'lsa, shu yerda text = text.replace(...) qiling
     return text, entities
 
-# 4. Handler
-@app.on_message()
+# 4. Handler (Chat ID larni to'g'ri tekshirish)
+@app.on_message(filters.chat(-1003797840044)) # Filtreni shu yerning o'zida ishlatish samaraliroq
 async def forward_handler(client, message):
-    # Chat ID larni raqam ko'rinishida saqlaymiz
-    SOURCE_CHAT_ID = -1003797840044
     TARGET_CHAT_ID = -1003379689674
-
-    # Chat ID ni tekshiramiz
-    if message.chat and message.chat.id == SOURCE_CHAT_ID:
-        try:
-            # Matnni tahrirlash funksiyangiz
-            new_text, new_entities = edit_caption_text(message)
-            
-            # Mediaga qarab yuborish
-            if message.photo:
-                await client.send_photo(
-                    chat_id=TARGET_CHAT_ID,
-                    photo=message.photo.file_id,
-                    caption=new_text,
-                    caption_entities=new_entities
-                )
-            elif message.video:
-                await client.send_video(
-                    chat_id=TARGET_CHAT_ID,
-                    video=message.video.file_id,
-                    caption=new_text,
-                    caption_entities=new_entities
-                )
-            elif message.text:
-                await client.send_message(
-                    chat_id=TARGET_CHAT_ID,
-                    text=new_text,
-                    entities=new_entities
-                )
-        except Exception as e:
-            print(f"Xatolik yuz berdi: {e}")
-
+    try:
+        new_text, new_entities = edit_caption_text(message)
+        
+        if message.photo:
+            await client.send_photo(TARGET_CHAT_ID, message.photo.file_id, caption=new_text, caption_entities=new_entities)
+        elif message.video:
+            await client.send_video(TARGET_CHAT_ID, message.video.file_id, caption=new_text, caption_entities=new_entities)
+        elif message.text:
+            await client.send_message(TARGET_CHAT_ID, new_text, entities=new_entities)
+    except Exception as e:
+        print(f"Xatolik yuz berdi: {e}")
 # 5. Ishga tushirish
 if __name__ == "__main__":
     Thread(target=run_flask, daemon=True).start()
