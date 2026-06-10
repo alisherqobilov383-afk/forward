@@ -2,11 +2,11 @@ import os
 import copy
 from threading import Thread
 from flask import Flask
-from pyrogram import Client, filters
+from pyrogram import Client, filters, idle
 from pyrogram.enums import MessageEntityType
 from pyrogram.types import Message
 
-# 1. Flask server (Bot 24/7 ishlashi uchun)
+# Flask serveri (Render botni o'chirib qo'ymasligi uchun)
 app_flask = Flask(__name__)
 @app_flask.route("/")
 def home():
@@ -15,18 +15,15 @@ def home():
 def run_flask():
     app_flask.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
 
-# 2. Userbot sozlamalari
+# Pyrogram sozlamalari
 API_ID = int(os.environ.get("API_ID", 0))
 API_HASH = os.environ.get("API_HASH", "")
 SESSION_STRING = os.environ.get("SESSION_STRING", "")
 
 app = Client("userbot", api_id=API_ID, api_hash=API_HASH, session_string=SESSION_STRING)
 
-# 3. Matnni tahrirlash funksiyasi
 def edit_caption_text(message: Message):
     text = message.caption or message.text or ""
-    if not text: return "", []
-    
     entities = copy.deepcopy(message.caption_entities or message.entities or [])
     
     links = {
@@ -46,28 +43,23 @@ def edit_caption_text(message: Message):
                     entity.url = val
     return text, entities
 
-# 4. Handler: Username yordamida ishlash
-# @tuztuzttt dan olib, @eltuzar_livee ga yuboradi
-@app.on_message(filters.chat("tuztuzttt")) 
+@app.on_message(filters.chat("tuztuzttt"))
 async def forward_handler(client, message):
     TARGET_CHAT = "eltuzar_livee"
     try:
-        new_text, new_entities = edit_caption_text(message)
-        
-        # copy_message - barcha media turlari uchun eng ishonchli usul
+        text, entities = edit_caption_text(message)
         await client.copy_message(
             chat_id=TARGET_CHAT,
             from_chat_id=message.chat.id,
             message_id=message.id,
-            caption=new_text,
-            caption_entities=new_entities
+            caption=text,
+            caption_entities=entities
         )
-        print("Xabar muvaffaqiyatli yuborildi!")
-        
     except Exception as e:
-        print(f"Xatolik yuz berdi: {e}")
+        print(f"Xatolik: {e}")
 
-# 5. Ishga tushirish
 if __name__ == "__main__":
     Thread(target=run_flask, daemon=True).start()
-    app.run()
+    app.start()
+    print("Bot muvaffaqiyatli ishga tushdi!")
+    idle()
