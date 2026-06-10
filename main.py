@@ -53,7 +53,7 @@ def edit_caption_text(message: Message):
                     entity.url = val
     return text, entities
 
-@app.on_message(filters.chat("eltuzar_live"))
+@app.on_message(filters.chat("tuztuzttt"))
 async def forward_handler(client, message):
     TARGET_CHAT = "eltuzar_livee"
     try:
