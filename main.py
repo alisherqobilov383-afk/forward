@@ -57,21 +57,39 @@ def edit_caption_text(message: Message):
 # 4. Handler
 @app.on_message()
 async def forward_handler(client, message):
-    # message.chat.id ni tekshiramiz (raqam sifatida)
-    if message.chat and message.chat.id == -1003797840044:
+    # Chat ID larni raqam ko'rinishida saqlaymiz
+    SOURCE_CHAT_ID = -1003545472423
+    TARGET_CHAT_ID = -1003379689674
+
+    # Chat ID ni tekshiramiz
+    if message.chat and message.chat.id == SOURCE_CHAT_ID:
         try:
+            # Matnni tahrirlash funksiyangiz
             new_text, new_entities = edit_caption_text(message)
-            target = -1003379689674 # Bu ham integer bo'lishi kerak
             
-            if message.photo: 
-                await client.send_photo(target, message.photo.file_id, caption=new_text, caption_entities=new_entities)
-            elif message.video: 
-                await client.send_video(target, message.video.file_id, caption=new_text, caption_entities=new_entities)
-            elif message.text: 
-                await client.send_message(target, new_text, entities=new_entities)
-                
+            # Mediaga qarab yuborish
+            if message.photo:
+                await client.send_photo(
+                    chat_id=TARGET_CHAT_ID,
+                    photo=message.photo.file_id,
+                    caption=new_text,
+                    caption_entities=new_entities
+                )
+            elif message.video:
+                await client.send_video(
+                    chat_id=TARGET_CHAT_ID,
+                    video=message.video.file_id,
+                    caption=new_text,
+                    caption_entities=new_entities
+                )
+            elif message.text:
+                await client.send_message(
+                    chat_id=TARGET_CHAT_ID,
+                    text=new_text,
+                    entities=new_entities
+                )
         except Exception as e:
-            print(f"Xatolik: {e}")
+            print(f"Xatolik yuz berdi: {e}")
 
 # 5. Ishga tushirish
 if __name__ == "__main__":
