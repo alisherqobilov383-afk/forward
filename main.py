@@ -1,3 +1,11 @@
+import asyncio
+import sys
+
+# Loopni oldindan yaratib olamiz
+loop = asyncio.new_event_loop()
+asyncio.set_event_loop(loop)
+
+# Endi kutubxonalarni import qilamiz
 import os
 import copy
 from threading import Thread
@@ -5,6 +13,8 @@ from flask import Flask
 from pyrogram import Client, filters, idle
 from pyrogram.enums import MessageEntityType
 from pyrogram.types import Message
+
+# ... qolgan kodlar (app, edit_caption_text, handler, if __name__ == "__main__")
 
 # Flask serveri (Render botni o'chirib qo'ymasligi uchun)
 app_flask = Flask(__name__)
