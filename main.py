@@ -58,7 +58,7 @@ def edit_caption_text(message: Message):
 @app.on_message()
 async def forward_handler(client, message):
     # Chat ID larni raqam ko'rinishida saqlaymiz
-    SOURCE_CHAT_ID = -1003545472423
+    SOURCE_CHAT_ID = -1003797840044
     TARGET_CHAT_ID = -1003379689674
 
     # Chat ID ni tekshiramiz
