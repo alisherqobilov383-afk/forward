@@ -55,7 +55,6 @@ async def forward_handler(client, message):
         )
     except Exception as e:
         print(f"Xatolik: {e}")
-pass
 
 if __name__ == "__main__":
     # Flaskni alohida thread'da ishga tushiramiz
