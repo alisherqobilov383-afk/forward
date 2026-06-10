@@ -1,17 +1,21 @@
 import os
 import copy
-import time
-import traceback
+import asyncio
+import logging
 from threading import Thread
-from flask import Flask
 
+from flask import Flask
 from pyrogram import Client, filters, idle
 from pyrogram.enums import MessageEntityType
 from pyrogram.types import Message
 
-# =========================
-# Flask (keep alive)
-# =========================
+# ================== LOGGING ==================
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s"
+)
+
+# ================== FLASK ==================
 app_flask = Flask(__name__)
 
 @app_flask.route("/")
@@ -22,16 +26,14 @@ def run_flask():
     app_flask.run(
         host="0.0.0.0",
         port=int(os.environ.get("PORT", 8080)),
-        threaded=True,
+        debug=False,
         use_reloader=False
     )
 
-# =========================
-# Telegram config
-# =========================
-API_ID = int(os.environ["API_ID"])
-API_HASH = os.environ["API_HASH"]
-SESSION_STRING = os.environ["SESSION_STRING"]
+# ================== PYROGRAM CONFIG ==================
+API_ID = int(os.environ.get("API_ID", 0))
+API_HASH = os.environ.get("API_HASH", "")
+SESSION_STRING = os.environ.get("SESSION_STRING", "")
 
 app = Client(
     "userbot",
@@ -40,18 +42,10 @@ app = Client(
     session_string=SESSION_STRING
 )
 
-SOURCE_CHAT = "tuztuzttt"
-TARGET_CHAT = "eltuzar_livee"
-
-# =========================
-# Caption editor
-# =========================
+# ================== TEXT EDIT ==================
 def edit_caption_text(message: Message):
     text = message.caption or message.text or ""
-
-    entities = copy.deepcopy(
-        message.caption_entities or message.entities or []
-    )
+    entities = copy.deepcopy(message.caption_entities or message.entities or [])
 
     links = {
         "ХАБАРИНГИЗНИ": "https://t.me/eltuzar_uz_bot",
@@ -65,18 +59,17 @@ def edit_caption_text(message: Message):
     for entity in entities:
         if entity.type == MessageEntityType.TEXT_LINK:
             word = text[entity.offset:entity.offset + entity.length].upper()
-
-            for key, value in links.items():
+            for key, val in links.items():
                 if key in word:
-                    entity.url = value
+                    entity.url = val
 
     return text, entities
 
-# =========================
-# Handler
-# =========================
-@app.on_message(filters.chat(SOURCE_CHAT))
-async def handler(client, message):
+# ================== HANDLER ==================
+TARGET_CHAT = "eltuzar_livee"
+
+@app.on_message(filters.chat("tuztuzttt"))
+async def forward_handler(client, message):
     try:
         text, entities = edit_caption_text(message)
 
@@ -88,37 +81,34 @@ async def handler(client, message):
             caption_entities=entities
         )
 
-        print("Forward:", message.id)
+        logging.info("Message copied successfully")
 
-    except Exception:
-        traceback.print_exc()
+    except Exception as e:
+        logging.error(f"Xatolik: {e}")
 
-# =========================
-# Auto restart loop
-# =========================
-def run_bot():
+# ================== RUN BOT WITH RECONNECT ==================
+async def run_bot():
     while True:
         try:
-            print("Bot starting...")
-            app.start()
-            print("Bot started!")
+            logging.info("Bot ishga tushyapti...")
+            await app.start()
+            logging.info("Bot ishlayapti!")
 
-            idle()
+            await idle()
 
         except Exception as e:
-            print("Bot crash:", e)
-            traceback.print_exc()
-            time.sleep(5)
+            logging.error(f"Bot crash bo‘ldi: {e}")
+            await asyncio.sleep(5)
 
         finally:
             try:
-                app.stop()
+                await app.stop()
             except:
                 pass
+            logging.info("Qayta ulanmoqda...")
 
-# =========================
-# MAIN
-# =========================
+# ================== MAIN ==================
 if __name__ == "__main__":
     Thread(target=run_flask, daemon=True).start()
-    run_bot()
+
+    asyncio.run(run_bot())
