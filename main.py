@@ -57,13 +57,19 @@ def edit_caption_text(message: Message):
 # 4. Handler
 @app.on_message()
 async def forward_handler(client, message):
-    if message.chat and str(message.chat.username) == "@tuztuzttt":
+    # message.chat.id ni tekshiramiz (raqam sifatida)
+    if message.chat and message.chat.id == -1003545472423:
         try:
             new_text, new_entities = edit_caption_text(message)
-            target = "@eltuzar_livee"
-            if message.photo: await client.send_photo(target, message.photo.file_id, caption=new_text, caption_entities=new_entities)
-            elif message.video: await client.send_video(target, message.video.file_id, caption=new_text, caption_entities=new_entities)
-            elif message.text: await client.send_message(target, new_text, entities=new_entities)
+            target = -1003379689674 # Bu ham integer bo'lishi kerak
+            
+            if message.photo: 
+                await client.send_photo(target, message.photo.file_id, caption=new_text, caption_entities=new_entities)
+            elif message.video: 
+                await client.send_video(target, message.video.file_id, caption=new_text, caption_entities=new_entities)
+            elif message.text: 
+                await client.send_message(target, new_text, entities=new_entities)
+                
         except Exception as e:
             print(f"Xatolik: {e}")
 
