@@ -1,22 +1,11 @@
-import asyncio
-import sys
-
-# Loopni oldindan yaratib olamiz
-loop = asyncio.new_event_loop()
-asyncio.set_event_loop(loop)
-
-# Endi kutubxonalarni import qilamiz
 import os
 import copy
-from threading import Thread
 from flask import Flask
-from pyrogram import Client, filters, idle
+from threading import Thread
+from pyrogram import Client, filters
 from pyrogram.enums import MessageEntityType
-from pyrogram.types import Message
 
-# ... qolgan kodlar (app, edit_caption_text, handler, if __name__ == "__main__")
-
-# Flask serveri (Render botni o'chirib qo'ymasligi uchun)
+# Flask sozlamalari
 app_flask = Flask(__name__)
 @app_flask.route("/")
 def home():
@@ -26,13 +15,12 @@ def run_flask():
     app_flask.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
 
 # Pyrogram sozlamalari
-API_ID = int(os.environ.get("API_ID", 0))
-API_HASH = os.environ.get("API_HASH", "")
-SESSION_STRING = os.environ.get("SESSION_STRING", "")
+app = Client("userbot", 
+             api_id=int(os.environ.get("API_ID", 0)), 
+             api_hash=os.environ.get("API_HASH", ""), 
+             session_string=os.environ.get("SESSION_STRING", ""))
 
-app = Client("userbot", api_id=API_ID, api_hash=API_HASH, session_string=SESSION_STRING)
-
-def edit_caption_text(message: Message):
+def edit_caption_text(message):
     text = message.caption or message.text or ""
     entities = copy.deepcopy(message.caption_entities or message.entities or [])
     
@@ -51,7 +39,7 @@ def edit_caption_text(message: Message):
             for key, val in links.items():
                 if key in word:
                     entity.url = val
-    return text, entities
+return text, entities
 
 @app.on_message(filters.chat("tuztuzttt"))
 async def forward_handler(client, message):
@@ -67,9 +55,11 @@ async def forward_handler(client, message):
         )
     except Exception as e:
         print(f"Xatolik: {e}")
+pass
 
 if __name__ == "__main__":
+    # Flaskni alohida thread'da ishga tushiramiz
     Thread(target=run_flask, daemon=True).start()
-    app.start()
-    print("Bot muvaffaqiyatli ishga tushdi!")
-    idle()
+    
+    # Pyrogram'ni boshlashning eng to'g'ri yo'li
+    app.run()
