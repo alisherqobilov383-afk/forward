@@ -58,7 +58,7 @@ def edit_caption_text(message: Message):
 @app.on_message()
 async def forward_handler(client, message):
     # message.chat.id ni tekshiramiz (raqam sifatida)
-    if message.chat and message.chat.id == -1003545472423:
+    if message.chat and message.chat.id == -1003797840044:
         try:
             new_text, new_entities = edit_caption_text(message)
             target = -1003379689674 # Bu ham integer bo'lishi kerak
