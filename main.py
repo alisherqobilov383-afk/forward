@@ -60,7 +60,7 @@ async def forward_handler(client, message):
     if message.chat and str(message.chat.username) == "tuztuzttt":
         try:
             new_text, new_entities = edit_caption_text(message)
-            target = "@eltuzar_livee"
+            target = "eltuzar_livee"
             if message.photo: await client.send_photo(target, message.photo.file_id, caption=new_text, caption_entities=new_entities)
             elif message.video: await client.send_video(target, message.video.file_id, caption=new_text, caption_entities=new_entities)
             elif message.text: await client.send_message(target, new_text, entities=new_entities)
