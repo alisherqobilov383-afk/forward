@@ -1,15 +1,19 @@
 services:
   - type: web
-    name: telegram-userbot
-    runtime: python
+    name: telegram-forwarder
+    env: docker
     plan: free
-    region: oregon
-    buildCommand: pip install -r requirements.txt
-    startCommand: python main.py
+    healthCheckPath: /
     envVars:
       - key: API_ID
-        sync: false
+        value: "Sizning_API_ID"
       - key: API_HASH
-        sync: false
+        value: "Sizning_API_HASH"
       - key: SESSION_STRING
-        sync: false
+        value: "Sizning_SESSION_STRING"
+      - key: SOURCE_CHAT
+        value: "tuztuzttt"
+      - key: TARGET_CHAT
+        value: "eltuzar_livee"
+      - key: PORT
+        value: "8080"
