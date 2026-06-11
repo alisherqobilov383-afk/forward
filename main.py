@@ -1,70 +1,54 @@
+import sys
 import os
 import asyncio
-from telethon import TelegramClient, errors
-from telethon.tl.types import MessageEntityType
+import copy
 
-class TelegramForwarder:
-    def __init__(self, api_id, api_hash, session_string=None):
-        self.api_id = api_id
-        self.api_hash = api_hash
-        # Session string or session file
-        self.client = TelegramClient(session_string if session_string else 'anon', api_id, api_hash)
+# 1. PYROGRAM SYNC MODULINI BUTUNLAY O'CHIRAMIZ (Xatolikni oldini olish uchun)
+class FakeSync:
+    def __getattr__(self, name): return None
+sys.modules["pyrogram.sync"] = FakeSync()
 
-    def process_entities(self, text, entities):
-        if not entities:
-            return text, entities
-        
-        for entity in entities:
-            if isinstance(entity, MessageEntityType.TextLink):
-                word = text[entity.offset : entity.offset + entity.length].upper()
-                if any(x in word for x in ["ХАБАРИНГИЗНИ ЮБОРМОҚЧИ БЎЛСАНГИЗ УШБУ ҲАВОЛА УСТИГА БОСИНГ", "ЮБОРМОҚЧИ", "УШБУ"]):
-                    entity.url = "https://t.me/eltuzar_uz_bot"
-                elif "LIVE" in word:
-                    entity.url = "https://t.me/eltuzar_livee"
-                elif "MEDIA" in word:
-                    entity.url = "https://t.me/eltuzar_mediaa"
-                elif "X" in word and len(word) == 1:
-                    entity.url = "https://x.com/eltuzar_uz"
-                elif "INSTAGRAM" in word:
-                    entity.url = "https://www.instagram.com/eltuzaar_uz"
-                elif "FACEBOOK" in word:
-                    entity.url = "https://www.facebook.com/profile.php?id=61585818251235"
-        return text, entities
+from flask import Flask
+from threading import Thread
+from pyrogram import Client, filters
+from pyrogram.enums import MessageEntityType
+from pyrogram.types import Message
 
-    async def forward_messages(self, source_chat_id, destination_channel_id):
-        await self.client.start()
-        
-        # Oxirgi xabarni olish
-        last_message = await self.client.get_messages(source_chat_id, limit=1)
-        last_message_id = last_message[0].id if last_message else 0
+# ================= SERVER (UPTIME) =================
+flask_app = Flask("")
+@flask_app.route("/")
+def home(): return "Bot 24/7 ishlamoqda!"
 
-        print(f"Monitoring boshlandi: {source_chat_id} -> {destination_channel_id}")
+def run_flask():
+    flask_app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
 
-        while True:
-            messages = await self.client.get_messages(source_chat_id, min_id=last_message_id, limit=None)
-            
-            for message in reversed(messages):
-                text = message.text
-                entities = message.entities
-                
-                # Havolalarni yangilash
-                new_text, new_entities = self.process_entities(text, entities)
-                
-                # Xabarni yuborish (Copy)
-                await self.client.send_message(
-                    destination_channel_id, 
-                    message=new_text, 
-                    formatting_entities=new_entities,
-                    file=message.media # Agar rasm/video bo'lsa
-                )
-                
-                last_message_id = max(last_message_id, message.id)
-                print(f"Xabar yuborildi: {message.id}")
+Thread(target=run_flask, daemon=True).start()
 
-            await asyncio.sleep(5)
+# ================= MANTIQ FUNKSIYASI =================
+def edit_caption_text(message: Message):
+    text = message.caption or message.text
+    if not text: return "", []
+    entities = copy.deepcopy(message.caption_entities or message.entities or [])
+    
+    for entity in entities:
+        if entity.type == MessageEntityType.TEXT_LINK:
+            word = text[entity.offset : entity.offset + entity.length].upper()
+            if any(x in word for x in ["ХАБАРИНГИЗНИ ЮБОРМОҚЧИ БЎЛСАНГИЗ УШБУ ҲАВОЛА УСТИГА БОСИНГ", "ЮБОРМОҚЧИ", "УШБУ"]):
+                entity.url = "https://t.me/eltuzar_uz_bot"
+            elif "LIVE" in word:
+                entity.url = "https://t.me/eltuzar_livee"
+            elif "MEDIA" in word:
+                entity.url = "https://t.me/eltuzar_mediaa"
+            elif "X" in word and len(word) == 1:
+                entity.url = "https://x.com/eltuzar_uz"
+            elif "INSTAGRAM" in word:
+                entity.url = "https://www.instagram.com/eltuzaar_uz"
+            elif "FACEBOOK" in word:
+                entity.url = "https://www.facebook.com/profile.php?id=61585818251235"
+    return text, entities
 
-async def main():
-    # Environment variable'lardan o'qish
+# ================= ASOSIY BOT =================
+async def start_bot():
     api_id = os.environ.get("API_ID")
     api_hash = os.environ.get("API_HASH")
     session_string = os.environ.get("SESSION_STRING")
@@ -72,11 +56,27 @@ async def main():
     target_channel = os.environ.get("TARGET_CHANNEL", "@eltuzar_livee")
 
     if not api_id or not api_hash:
-        print("Error: API_ID va API_HASH o'rnatilmagan!")
+        print("❌ XATOLIK: API_ID yoki API_HASH topilmadi!")
         return
 
-    forwarder = TelegramForwarder(api_id, api_hash, session_string)
-    await forwarder.forward_messages(source_channel, target_channel)
+    app = Client("render_userbot", api_id=int(api_id), api_hash=api_hash, session_string=session_string)
+
+    @app.on_message(filters.chat(source_channel))
+    async def forward_and_edit(client: Client, message: Message):
+        new_text, new_entities = edit_caption_text(message)
+        try:
+            if message.photo: await client.send_photo(target_channel, photo=message.photo.file_id, caption=new_text, caption_entities=new_entities)
+            elif message.video: await client.send_video(target_channel, video=message.video.file_id, caption=new_text, caption_entities=new_entities)
+            elif message.audio or message.voice: await client.send_audio(target_channel, audio=(message.audio or message.voice).file_id, caption=new_text, caption_entities=new_entities)
+            elif message.text: await client.send_message(target_channel, text=new_text, entities=new_entities)
+        except Exception as e: print(f"❌ Xatolik: {e}")
+
+    await app.start()
+    print(f"🚀 Bot ishga tushdi! Kuzatilmoqda: {source_channel}")
+    
+    # IDLE o'rniga barqaror kutish sikli
+    while True:
+        await asyncio.sleep(3600)
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    asyncio.run(start_bot())
