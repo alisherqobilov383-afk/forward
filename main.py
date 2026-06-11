@@ -1,138 +1,82 @@
 import os
 import asyncio
+from telethon import TelegramClient, errors
+from telethon.tl.types import MessageEntityType
 
-from telethon import TelegramClient, events
-from telethon.sessions import StringSession
-from telethon.tl.types import MessageEntityTextUrl
+class TelegramForwarder:
+    def __init__(self, api_id, api_hash, session_string=None):
+        self.api_id = api_id
+        self.api_hash = api_hash
+        # Session string or session file
+        self.client = TelegramClient(session_string if session_string else 'anon', api_id, api_hash)
 
-API_ID = int(os.environ.get("API_ID"))
-API_HASH = os.environ.get("API_HASH")
-SESSION_STRING = os.environ.get("SESSION_STRING")
+    def process_entities(self, text, entities):
+        if not entities:
+            return text, entities
+        
+        for entity in entities:
+            if isinstance(entity, MessageEntityType.TextLink):
+                word = text[entity.offset : entity.offset + entity.length].upper()
+                if any(x in word for x in ["ХАБАРИНГИЗНИ ЮБОРМОҚЧИ БЎЛСАНГИЗ УШБУ ҲАВОЛА УСТИГА БОСИНГ", "ЮБОРМОҚЧИ", "УШБУ"]):
+                    entity.url = "https://t.me/eltuzar_uz_bot"
+                elif "LIVE" in word:
+                    entity.url = "https://t.me/eltuzar_livee"
+                elif "MEDIA" in word:
+                    entity.url = "https://t.me/eltuzar_mediaa"
+                elif "X" in word and len(word) == 1:
+                    entity.url = "https://x.com/eltuzar_uz"
+                elif "INSTAGRAM" in word:
+                    entity.url = "https://www.instagram.com/eltuzaar_uz"
+                elif "FACEBOOK" in word:
+                    entity.url = "https://www.facebook.com/profile.php?id=61585818251235"
+        return text, entities
 
-SOURCE_CHANNEL = os.environ.get(
-"SOURCE_CHANNEL",
-"@tuztuzttt"
-)
+    async def forward_messages(self, source_chat_id, destination_channel_id):
+        await self.client.start()
+        
+        # Oxirgi xabarni olish
+        last_message = await self.client.get_messages(source_chat_id, limit=1)
+        last_message_id = last_message[0].id if last_message else 0
 
-TARGET_CHANNEL = os.environ.get(
-"TARGET_CHANNEL",
-"@eltuzar_livee"
-)
+        print(f"Monitoring boshlandi: {source_chat_id} -> {destination_channel_id}")
 
-client = TelegramClient(
-StringSession(SESSION_STRING),
-API_ID,
-API_HASH
-)
+        while True:
+            messages = await self.client.get_messages(source_chat_id, min_id=last_message_id, limit=None)
+            
+            for message in reversed(messages):
+                text = message.text
+                entities = message.entities
+                
+                # Havolalarni yangilash
+                new_text, new_entities = self.process_entities(text, entities)
+                
+                # Xabarni yuborish (Copy)
+                await self.client.send_message(
+                    destination_channel_id, 
+                    message=new_text, 
+                    formatting_entities=new_entities,
+                    file=message.media # Agar rasm/video bo'lsa
+                )
+                
+                last_message_id = max(last_message_id, message.id)
+                print(f"Xabar yuborildi: {message.id}")
 
-def replace_links(text, entities):
-if not text:
-return text, entities
-
-```
-if not entities:
-    return text, entities
-
-for entity in entities:
-
-    if not isinstance(entity, MessageEntityTextUrl):
-        continue
-
-    word = text[
-        entity.offset:
-        entity.offset + entity.length
-    ].upper()
-
-    if any(
-        x in word
-        for x in [
-            "ХАБАРИНГИЗНИ ЮБОРМОҚЧИ БЎЛСАНГИЗ УШБУ ҲАВОЛА УСТИГА БОСИНГ",
-            "ЮБОРМОҚЧИ",
-            "УШБУ",
-        ]
-    ):
-        entity.url = "https://t.me/eltuzar_uz_bot"
-
-    elif "LIVE" in word:
-        entity.url = "https://t.me/eltuzar_livee"
-
-    elif "MEDIA" in word:
-        entity.url = "https://t.me/eltuzar_mediaa"
-
-    elif word == "X":
-        entity.url = "https://x.com/eltuzar_uz"
-
-    elif "INSTAGRAM" in word:
-        entity.url = (
-            "https://www.instagram.com/eltuzaar_uz"
-        )
-
-    elif "FACEBOOK" in word:
-        entity.url = (
-            "https://www.facebook.com/"
-            "profile.php?id=61585818251235"
-        )
-
-return text, entities
-```
-
-@client.on(events.NewMessage(chats=SOURCE_CHANNEL))
-async def handler(event):
-try:
-message = event.message
-
-```
-    text = message.message or ""
-    entities = message.entities
-
-    text, entities = replace_links(
-        text,
-        entities
-    )
-
-    if message.media:
-
-        await client.send_file(
-            TARGET_CHANNEL,
-            file=message.media,
-            caption=text,
-            formatting_entities=entities
-        )
-
-        print(
-            f"Media forwarded: {message.id}"
-        )
-
-    else:
-
-        await client.send_message(
-            TARGET_CHANNEL,
-            text,
-            formatting_entities=entities
-        )
-
-        print(
-            f"Message forwarded: {message.id}"
-        )
-
-except Exception as e:
-    print(
-        f"Forward error: {e}"
-    )
-```
+            await asyncio.sleep(5)
 
 async def main():
-print(
-f"Listening: {SOURCE_CHANNEL}"
-)
+    # Environment variable'lardan o'qish
+    api_id = os.environ.get("API_ID")
+    api_hash = os.environ.get("API_HASH")
+    session_string = os.environ.get("SESSION_STRING")
+    source_channel = os.environ.get("SOURCE_CHANNEL", "@tuztuzttt")
+    target_channel = os.environ.get("TARGET_CHANNEL", "@eltuzar_livee")
 
-```
-print(
-    f"Target: {TARGET_CHANNEL}"
-)
+    if not api_id or not api_hash:
+        print("Error: API_ID va API_HASH o'rnatilmagan!")
+        return
 
-await client.run_until_disconnected()
-```
+    forwarder = TelegramForwarder(api_id, api_hash, session_string)
+    await forwarder.forward_messages(source_channel, target_channel)
 
-with client:
-client.loop.run_until_complete(main())
+if __name__ == "__main__":
+    asyncio.run(main())
