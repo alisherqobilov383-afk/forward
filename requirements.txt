@@ -1,1 +1,3 @@
-telethon
+Flask
+pyrogram
+tgcrypto
