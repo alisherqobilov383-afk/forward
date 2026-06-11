@@ -1,71 +1,138 @@
 import os
-import copy
 import asyncio
-from threading import Thread
-from flask import Flask
-from pyrogram import Client, filters, idle
-from pyrogram.enums import MessageEntityType
-from pyrogram.types import Message
 
-# Flask serveri (UptimeRobot/Render uchun)
-app_flask = Flask(__name__)
-@app_flask.route("/")
-def home():
-    return "Bot 24/7 ishlamoqda"
+from telethon import TelegramClient, events
+from telethon.sessions import StringSession
+from telethon.tl.types import MessageEntityTextUrl
 
-def run_flask():
-    app_flask.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
+API_ID = int(os.environ.get("API_ID"))
+API_HASH = os.environ.get("API_HASH")
+SESSION_STRING = os.environ.get("SESSION_STRING")
 
-# Environment variable'lardan ma'lumotlarni o'qish
-API_ID = int(os.environ.get("API_ID", 0))
-API_HASH = os.environ.get("API_HASH", "")
-SESSION_STRING = os.environ.get("SESSION_STRING", "") # Pyrogram String Session
-SOURCE_CHAT = os.environ.get("SOURCE_CHAT", "tuztuzttt") # Manba
-TARGET_CHAT = os.environ.get("TARGET_CHAT", "eltuzar_livee") # Maqsad
+SOURCE_CHANNEL = os.environ.get(
+"SOURCE_CHANNEL",
+"@tuztuzttt"
+)
 
-app = Client("userbot", api_id=API_ID, api_hash=API_HASH, session_string=SESSION_STRING)
+TARGET_CHANNEL = os.environ.get(
+"TARGET_CHANNEL",
+"@eltuzar_livee"
+)
 
-def edit_caption_text(message: Message):
-    text = message.caption or message.text or ""
-    entities = copy.deepcopy(message.caption_entities or message.entities or [])
-    
-    links = {
-        "ХАБАРИНГИЗНИ": "https://t.me/eltuzar_uz_bot",
-        "LIVE": "https://t.me/eltuzar_livee",
-        "MEDIA": "https://t.me/eltuzar_mediaa",
-        "X": "https://x.com/eltuzar_uz",
-        "INSTAGRAM": "https://www.instagram.com/eltuzar_uz",
-        "FACEBOOK": "https://www.facebook.com/profile.php?id=61585818251235"
-    }
-    
-    for entity in entities:
-        if entity.type == MessageEntityType.TEXT_LINK:
-            word = text[entity.offset:entity.offset+entity.length].upper()
-            for key, val in links.items():
-                if key in word:
-                    entity.url = val
+client = TelegramClient(
+StringSession(SESSION_STRING),
+API_ID,
+API_HASH
+)
+
+def replace_links(text, entities):
+if not text:
+return text, entities
+
+```
+if not entities:
     return text, entities
 
-@app.on_message(filters.chat(SOURCE_CHAT))
-async def forward_handler(client, message):
-    try:
-        text, entities = edit_caption_text(message)
-        await client.copy_message(
-            chat_id=TARGET_CHAT,
-            from_chat_id=message.chat.id,
-            message_id=message.id,
-            caption=text,
-            caption_entities=entities
-        )
-        print(f"Xabar muvaffaqiyatli uzatildi: {message.id}")
-    except Exception as e:
-        print(f"Xatolik: {e}")
+for entity in entities:
 
-if __name__ == "__main__":
-    # Flask ni fon rejimida ishga tushirish
-    Thread(target=run_flask, daemon=True).start()
-    
-    # Pyrogram ni ishga tushirish
-    app.start()
-    print("Bot muvaffaqiyatli ishga tushdi!")
-    idle()
+    if not isinstance(entity, MessageEntityTextUrl):
+        continue
+
+    word = text[
+        entity.offset:
+        entity.offset + entity.length
+    ].upper()
+
+    if any(
+        x in word
+        for x in [
+            "ХАБАРИНГИЗНИ ЮБОРМОҚЧИ БЎЛСАНГИЗ УШБУ ҲАВОЛА УСТИГА БОСИНГ",
+            "ЮБОРМОҚЧИ",
+            "УШБУ",
+        ]
+    ):
+        entity.url = "https://t.me/eltuzar_uz_bot"
+
+    elif "LIVE" in word:
+        entity.url = "https://t.me/eltuzar_livee"
+
+    elif "MEDIA" in word:
+        entity.url = "https://t.me/eltuzar_mediaa"
+
+    elif word == "X":
+        entity.url = "https://x.com/eltuzar_uz"
+
+    elif "INSTAGRAM" in word:
+        entity.url = (
+            "https://www.instagram.com/eltuzaar_uz"
+        )
+
+    elif "FACEBOOK" in word:
+        entity.url = (
+            "https://www.facebook.com/"
+            "profile.php?id=61585818251235"
+        )
+
+return text, entities
+```
+
+@client.on(events.NewMessage(chats=SOURCE_CHANNEL))
+async def handler(event):
+try:
+message = event.message
+
+```
+    text = message.message or ""
+    entities = message.entities
+
+    text, entities = replace_links(
+        text,
+        entities
+    )
+
+    if message.media:
+
+        await client.send_file(
+            TARGET_CHANNEL,
+            file=message.media,
+            caption=text,
+            formatting_entities=entities
+        )
+
+        print(
+            f"Media forwarded: {message.id}"
+        )
+
+    else:
+
+        await client.send_message(
+            TARGET_CHANNEL,
+            text,
+            formatting_entities=entities
+        )
+
+        print(
+            f"Message forwarded: {message.id}"
+        )
+
+except Exception as e:
+    print(
+        f"Forward error: {e}"
+    )
+```
+
+async def main():
+print(
+f"Listening: {SOURCE_CHANNEL}"
+)
+
+```
+print(
+    f"Target: {TARGET_CHANNEL}"
+)
+
+await client.run_until_disconnected()
+```
+
+with client:
+client.loop.run_until_complete(main())
