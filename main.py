@@ -38,7 +38,7 @@ def edit_caption_text(message: Message):
             elif "LIVE" in word:
                 entity.url = "https://t.me/eltuzar_livee"
             elif "MEDIA" in word:
-                entity.url = "https://t.me/eltuzar_mediaa"
+                entity.url = "https://t.me/eltuzar_media"
             elif "X" in word and len(word) == 1:
                 entity.url = "https://x.com/eltuzar_uz"
             elif "INSTAGRAM" in word:
