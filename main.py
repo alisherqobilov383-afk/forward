@@ -52,7 +52,7 @@ async def start_bot():
     api_id = os.environ.get("API_ID")
     api_hash = os.environ.get("API_HASH")
     session_string = os.environ.get("SESSION_STRING")
-    source_channel = os.environ.get("SOURCE_CHANNEL", "@tuztuzttt")
+    source_channel = os.environ.get("SOURCE_CHANNEL", "@eltuzar_live")
     target_channel = os.environ.get("TARGET_CHANNEL", "@eltuzar_livee")
 
     if not api_id or not api_hash:
