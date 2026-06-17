@@ -23,8 +23,8 @@ target = os.environ["TARGET_CHANNEL"]
 client = TelegramClient(StringSession(session), api_id, api_hash)
 
 LINK_MAP = {
-    "https://t.me/eltuzportali_bot": "https://t.me/eltuzar_uz_bot",
-    "https://t.me/eltuzar_live": "https://t.me/eltuzar_livee"
+    "https://t.me/eltuzportali_bot": "https://t.me/eltuzga_murojaat_bot",
+    "https://t.me/eltuzar_live": "https://t.me/eltuzportaluz"
 }
 
 def replace_links(text):
