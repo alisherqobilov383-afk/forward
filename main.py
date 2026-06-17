@@ -1,82 +1,84 @@
-import sys
 import os
 import asyncio
-import copy
-
-# 1. PYROGRAM SYNC MODULINI BUTUNLAY O'CHIRAMIZ (Xatolikni oldini olish uchun)
-class FakeSync:
-    def __getattr__(self, name): return None
-sys.modules["pyrogram.sync"] = FakeSync()
-
 from flask import Flask
 from threading import Thread
-from pyrogram import Client, filters
-from pyrogram.enums import MessageEntityType
-from pyrogram.types import Message
+from telethon import TelegramClient, events
+from telethon.sessions import StringSession
 
-# ================= SERVER (UPTIME) =================
-flask_app = Flask("")
-@flask_app.route("/")
-def home(): return "Bot 24/7 ishlamoqda!"
+app = Flask(__name__)
 
-def run_flask():
-    flask_app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
+@app.route("/")
+def home():
+    return "OK"
 
-Thread(target=run_flask, daemon=True).start()
+Thread(target=lambda: app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 10000))), daemon=True).start()
 
-# ================= MANTIQ FUNKSIYASI =================
-def edit_caption_text(message: Message):
-    text = message.caption or message.text
-    if not text: return "", []
-    entities = copy.deepcopy(message.caption_entities or message.entities or [])
-    
-    for entity in entities:
-        if entity.type == MessageEntityType.TEXT_LINK:
-            word = text[entity.offset : entity.offset + entity.length].upper()
-            if any(x in word for x in ["ХАБАРИНГИЗНИ ЮБОРМОҚЧИ БЎЛСАНГИЗ УШБУ ҲАВОЛА УСТИГА БОСИНГ", "ЮБОРМОҚЧИ", "УШБУ"]):
-                entity.url = "https://t.me/eltuzar_uz_bot"
-            elif "LIVE" in word:
-                entity.url = "https://t.me/eltuzar_livee"
-            elif "MEDIA" in word:
-                entity.url = "https://t.me/eltuzar_media"
-            elif "X" in word and len(word) == 1:
-                entity.url = "https://x.com/eltuzar_uz"
-            elif "INSTAGRAM" in word:
-                entity.url = "https://www.instagram.com/eltuzaar_uz"
-            elif "FACEBOOK" in word:
-                entity.url = "https://www.facebook.com/profile.php?id=61585818251235"
-    return text, entities
+api_id = int(os.environ["API_ID"])
+api_hash = os.environ["API_HASH"]
+session = os.environ["SESSION_STRING"]
 
-# ================= ASOSIY BOT =================
-async def start_bot():
-    api_id = os.environ.get("API_ID")
-    api_hash = os.environ.get("API_HASH")
-    session_string = os.environ.get("SESSION_STRING")
-    source_channel = os.environ.get("SOURCE_CHANNEL", "@tuztuzttt")
-    target_channel = os.environ.get("TARGET_CHANNEL", "@eltuzar_livee")
+source = os.environ["SOURCE_CHANNEL"]
+target = os.environ["TARGET_CHANNEL"]
 
-    if not api_id or not api_hash:
-        print("❌ XATOLIK: API_ID yoki API_HASH topilmadi!")
-        return
+client = TelegramClient(StringSession(session), api_id, api_hash)
 
-    app = Client("render_userbot", api_id=int(api_id), api_hash=api_hash, session_string=session_string)
+LINK_MAP = {
+    "https://t.me/eltuzportali_bot": "https://t.me/eltuzar_uz_bot",
+    "https://t.me/eltuzar_live": "https://t.me/eltuzar_livee"
+}
 
-    @app.on_message(filters.chat(source_channel))
-    async def forward_and_edit(client: Client, message: Message):
-        new_text, new_entities = edit_caption_text(message)
-        try:
-            if message.photo: await client.send_photo(target_channel, photo=message.photo.file_id, caption=new_text, caption_entities=new_entities)
-            elif message.video: await client.send_video(target_channel, video=message.video.file_id, caption=new_text, caption_entities=new_entities)
-            elif message.audio or message.voice: await client.send_audio(target_channel, audio=(message.audio or message.voice).file_id, caption=new_text, caption_entities=new_entities)
-            elif message.text: await client.send_message(target_channel, text=new_text, entities=new_entities)
-        except Exception as e: print(f"❌ Xatolik: {e}")
+def replace_links(text):
+    if not text:
+        return text
+    for a, b in LINK_MAP.items():
+        text = text.replace(a, b)
+    return text
 
-    await app.start()
-    print(f"🚀 Bot ishga tushdi! Kuzatilmoqda: {source_channel}")
-    
-    # IDLE o'rniga barqaror kutish sikli
-    while True:
-        await asyncio.sleep(3600)
+# ================= ALBUM =================
+@client.on(events.Album(chats=source))
+async def album(event):
+    try:
+        media = []
+        caption = ""
+
+        for msg in event.messages:
+            if not caption:
+                caption = replace_links(msg.text or msg.message or "")
+
+            # 🔥 MUHIM: HAR QANDAY FILE
+            if msg.media:
+                media.append(msg.media)
+
+        await client.send_file(target, media, caption=caption)
+
+        print("ALBUM OK")
+
+    except Exception as e:
+        print("ALBUM ERROR:", e)
+
+# ================= SINGLE =================
+@client.on(events.NewMessage(chats=source))
+async def handler(event):
+    try:
+        msg = event.message
+        text = replace_links(msg.text or msg.message or "")
+
+        # 🔥 ENG MUHIM FIX
+        if msg.media:
+            await client.send_file(target, msg.media, caption=text)
+
+        else:
+            await client.send_message(target, text)
+
+        print("OK:", msg.id)
+
+    except Exception as e:
+        print("ERROR:", e)
+
+async def main():
+    await client.start()
+    print("BOT STARTED")
+    await client.run_until_disconnected()
 
 if __name__ == "__main__":
-    asyncio.run(start_bot())
+    asyncio.run(main())
